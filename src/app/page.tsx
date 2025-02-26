@@ -1,3 +1,5 @@
+"use client";
+
 import { useApi } from '@/hooks/useApi';
 import { ApiResponse } from '@/types/api';
 
