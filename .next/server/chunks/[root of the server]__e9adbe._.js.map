@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 55, "column": 0}, "map": {"version":3,"sources":["file://H%3A/www/GometUI/gometui/src/app/api/hello/route.ts"],"sourcesContent":["import { NextResponse } from 'next/server';\r\n\r\nexport async function GET() {\r\n  return NextResponse.json({ message: 'Hello from the API!' });\r\n}"],"names":[],"mappings":";;;AAAA;;AAEO,eAAe;IACpB,OAAO,gIAAA,CAAA,eAAY,CAAC,IAAI,CAAC;QAAE,SAAS;IAAsB;AAC5D"}},
+    {"offset": {"line": 65, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}
