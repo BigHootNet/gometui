@@ -1,9 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":["file://H%3A/www/GometUI/gometui/src/lib/api/index.ts"],"sourcesContent":["export async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {\r\n    const res = await fetch(`/api${endpoint}`, options);\r\n    if (!res.ok) throw new Error('Erreur API');\r\n    return res.json();\r\n  }"],"names":[],"mappings":";;;AAAO,eAAe,SAAY,QAAgB,EAAE,OAAqB;IACrE,MAAM,MAAM,MAAM,MAAM,CAAC,IAAI,EAAE,UAAU,EAAE;IAC3C,IAAI,CAAC,IAAI,EAAE,EAAE,MAAM,IAAI,MAAM;IAC7B,OAAO,IAAI,IAAI;AACjB"}},
-    {"offset": {"line": 18, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
-    {"offset": {"line": 24, "column": 0}, "map": {"version":3,"sources":["file://H%3A/www/GometUI/gometui/src/hooks/useApi.ts"],"sourcesContent":["\"use client\";\r\n\r\nimport { useState, useEffect } from 'react';\r\nimport { fetchApi } from '@/lib/api';\r\n\r\nexport function useApi<T>(endpoint: string) {\r\n  const [data, setData] = useState<T | null>(null);\r\n  const [loading, setLoading] = useState(true);\r\n\r\n  useEffect(() => {\r\n    fetchApi<T>(endpoint)\r\n      .then(setData)\r\n      .catch(console.error)\r\n      .finally(() => setLoading(false));\r\n  }, [endpoint]);\r\n\r\n  return { data, loading };\r\n}"],"names":[],"mappings":";;;AAEA;AACA;;AAHA;;;AAKO,SAAS,OAAU,QAAgB;;IACxC,MAAM,CAAC,MAAM,QAAQ,GAAG,CAAA,GAAA,6JAAA,CAAA,WAAQ,AAAD,EAAY;IAC3C,MAAM,CAAC,SAAS,WAAW,GAAG,CAAA,GAAA,6JAAA,CAAA,WAAQ,AAAD,EAAE;IAEvC,CAAA,GAAA,6JAAA,CAAA,YAAS,AAAD;4BAAE;YACR,CAAA,GAAA,6HAAA,CAAA,WAAQ,AAAD,EAAK,UACT,IAAI,CAAC,SACL,KAAK,CAAC,QAAQ,KAAK,EACnB,OAAO;oCAAC,IAAM,WAAW;;QAC9B;2BAAG;QAAC;KAAS;IAEb,OAAO;QAAE;QAAM;IAAQ;AACzB;GAZgB"}},
-    {"offset": {"line": 55, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
-}

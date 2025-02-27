@@ -1,0 +1,103 @@
+/* src/styles/admin.css */
+.admin-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  
+  .admin-title {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 16px;
+  }
+  
+  .admin-welcome {
+    margin-bottom: 24px;
+  }
+  
+  .admin-section {
+    margin-bottom: 32px;
+  }
+  
+  .admin-section-title {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  
+  .admin-form {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  
+  .admin-input {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+  
+  .admin-select {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+  
+  .admin-button {
+    padding: 8px 16px;
+    background-color: #0070f3;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  .admin-button:hover {
+    background-color: #005bb5;
+  }
+  
+  .admin-button-edit {
+    background-color: #f1c40f;
+  }
+  
+  .admin-button-edit:hover {
+    background-color: #d4ac0d;
+  }
+  
+  .admin-button-delete {
+    background-color: #e74c3c;
+  }
+  
+  .admin-button-delete:hover {
+    background-color: #c0392b;
+  }
+  
+  .admin-button-cancel {
+    background-color: #6b7280;
+  }
+  
+  .admin-button-cancel:hover {
+    background-color: #4b5563;
+  }
+  
+  .admin-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  .admin-table th,
+  .admin-table td {
+    border: 1px solid #ccc;
+    padding: 8px;
+    text-align: left;
+  }
+  
+  .admin-table th {
+    background-color: #f2f2f2;
+  }
+  
+  .admin-table tr:hover {
+    background-color: #f5f5f5;
+  }
