@@ -1,8 +1,9 @@
 // src/app/admin/AdminPanel.tsx
 "use client";
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useState, useEffect } from 'react';
 import { ExtendedSession } from '@/types/next-auth';
+import { signOut } from 'next-auth/react';
 import '../../styles/admin.css';
 
 interface User {
@@ -10,50 +11,182 @@ interface User {
   name: string;
   email: string;
   role: string;
+  banned?: number;
+}
+
+interface Stats {
+  total: number;
+  roles: { [key: string]: number };
 }
 
 interface AdminPanelProps {
   session: ExtendedSession;
-  initialUsers: User[];
 }
 
-export default function AdminPanel({ session, initialUsers }: AdminPanelProps) {
-  const [userList, setUserList] = useState(initialUsers);
+export default function AdminPanel({ session }: AdminPanelProps) {
+  const [userList, setUserList] = useState<User[]>([]);
   const [newUser, setNewUser] = useState({ name: '', email: '', role: 'user' });
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
 
-  const handleAddUser = (e: FormEvent) => {
+  useEffect(() => {
+    fetchUsers();
+    fetchStats();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch('/api/users');
+      if (!res.ok) throw new Error(`Failed to fetch users: ${res.status}`);
+      const data = await res.json();
+      setUserList(data);
+    } catch (error) {
+      setError('Erreur lors du chargement des utilisateurs');
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch('/api/users?type=stats');
+      if (!res.ok) throw new Error(`Failed to fetch stats: ${res.status}`);
+      const data = await res.json();
+      setStats(data);
+    } catch (error) {
+      setError('Erreur lors du chargement des statistiques');
+    }
+  };
+
+  const handleAddUser = async (e: FormEvent) => {
     e.preventDefault();
-    const id = (userList.length + 1).toString();
-    const addedUser = { id, ...newUser };
-    setUserList([...userList, addedUser]);
-    setNewUser({ name: '', email: '', role: 'user' });
+    try {
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newUser),
+      });
+      if (!res.ok) throw new Error(`Failed to add user: ${res.status}`);
+      const addedUser = await res.json();
+      setUserList([...userList, addedUser]);
+      setNewUser({ name: '', email: '', role: 'user' });
+      await fetchUsers();
+      await fetchStats();
+    } catch (error) {
+      setError('Erreur lors de l’ajout de l’utilisateur');
+    }
   };
 
   const handleEditUser = (user: User) => {
     setEditingUser(user);
   };
 
-  const handleUpdateUser = (e: FormEvent) => {
+  const handleUpdateUser = async (e: FormEvent) => {
     e.preventDefault();
     if (editingUser) {
-      setUserList(
-        userList.map((u) => (u.id === editingUser.id ? { ...editingUser } : u))
-      );
-      setEditingUser(null);
+      try {
+        const res = await fetch('/api/users', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(editingUser),
+        });
+        if (!res.ok) throw new Error(`Failed to update user: ${res.status}`);
+        const updatedUser = await res.json();
+        setUserList(
+          userList.map((u) => (u.id === updatedUser.id ? updatedUser : u))
+        );
+        setEditingUser(null);
+        await fetchStats();
+      } catch (error) {
+        setError('Erreur lors de la mise à jour de l’utilisateur');
+      }
     }
   };
 
-  const handleDeleteUser = (id: string) => {
-    setUserList(userList.filter((u) => u.id !== id));
+  const handleDeleteUser = async (id: string) => {
+    try {
+      const res = await fetch('/api/users', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) throw new Error(`Failed to delete user: ${res.status}`);
+      setUserList(userList.filter((u) => u.id !== id));
+      await fetchStats();
+    } catch (error) {
+      setError('Erreur lors de la suppression de l’utilisateur');
+    }
+  };
+
+  const handleBanUser = async (id: string, currentBanned: number | undefined) => {
+    const newBanned = currentBanned === 1 ? 0 : 1;
+    try {
+      const userToUpdate = userList.find((u) => u.id === id);
+      if (!userToUpdate) throw new Error('User not found');
+      const res = await fetch('/api/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...userToUpdate, banned: newBanned }),
+      });
+      if (!res.ok) throw new Error(`Failed to update user: ${res.status}`);
+      const updatedUser = await res.json();
+      setUserList(
+        userList.map((u) => (u.id === updatedUser.id ? updatedUser : u))
+      );
+      await fetchStats();
+    } catch (error) {
+      setError('Erreur lors de la mise à jour du statut de bannissement');
+    }
+  };
+
+  const handleToggleRole = async (id: string, currentRole: string) => {
+    const newRole = currentRole === 'admin' ? 'user' : 'admin';
+    try {
+      const userToUpdate = userList.find((u) => u.id === id);
+      if (!userToUpdate) throw new Error('User not found');
+      const res = await fetch('/api/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...userToUpdate, role: newRole }),
+      });
+      if (!res.ok) throw new Error(`Failed to update user: ${res.status}`);
+      const updatedUser = await res.json();
+      setUserList(
+        userList.map((u) => (u.id === updatedUser.id ? updatedUser : u))
+      );
+      await fetchStats();
+    } catch (error) {
+      setError('Erreur lors de la mise à jour du rôle');
+    }
+  };
+
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: '/login' });
   };
 
   return (
     <div className="admin-container">
-      <h1 className="admin-title">Panel Admin</h1>
+      <div className="admin-header">
+        <h1 className="admin-title">Panel Admin</h1>
+        <button onClick={handleLogout} className="admin-button admin-button-logout">
+          Déconnexion
+        </button>
+      </div>
       <p className="admin-welcome">Bienvenue, {session.user.name} ! Vous êtes administrateur.</p>
+      {error && <p style={{ color: 'red' }}>{error}</p>}
 
-      {/* Formulaire d'ajout */}
+      <section className="admin-section">
+        <h2 className="admin-section-title">Statistiques</h2>
+        {stats ? (
+          <div>
+            <p>Nombre total d’utilisateurs : {stats.total}</p>
+            <p>Administrateurs : {stats.roles.admin || 0}</p>
+            <p>Utilisateurs standards : {stats.roles.user || 0}</p>
+          </div>
+        ) : (
+          <p>Chargement des statistiques...</p>
+        )}
+      </section>
+
       <section className="admin-section">
         <h2 className="admin-section-title">Ajouter un utilisateur</h2>
         <form onSubmit={handleAddUser} className="admin-form">
@@ -85,7 +218,6 @@ export default function AdminPanel({ session, initialUsers }: AdminPanelProps) {
         </form>
       </section>
 
-      {/* Liste des utilisateurs */}
       <section className="admin-section">
         <h2 className="admin-section-title">Liste des utilisateurs</h2>
         <table className="admin-table">
@@ -95,6 +227,7 @@ export default function AdminPanel({ session, initialUsers }: AdminPanelProps) {
               <th>Nom</th>
               <th>Email</th>
               <th>Rôle</th>
+              <th>Banni</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -105,6 +238,7 @@ export default function AdminPanel({ session, initialUsers }: AdminPanelProps) {
                 <td>{user.name}</td>
                 <td>{user.email}</td>
                 <td>{user.role}</td>
+                <td>{user.banned === 1 ? 'Oui' : 'Non'}</td>
                 <td>
                   <button
                     onClick={() => handleEditUser(user)}
@@ -118,6 +252,18 @@ export default function AdminPanel({ session, initialUsers }: AdminPanelProps) {
                   >
                     Supprimer
                   </button>
+                  <button
+                    onClick={() => handleBanUser(user.id, user.banned)}
+                    className={`admin-button ${user.banned === 1 ? 'admin-button-cancel' : 'admin-button-delete'}`}
+                  >
+                    {user.banned === 1 ? 'Débannir' : 'Bannir'}
+                  </button>
+                  <button
+                    onClick={() => handleToggleRole(user.id, user.role)}
+                    className="admin-button admin-button-edit"
+                  >
+                    {user.role === 'admin' ? 'Rétrograder' : 'Promouvoir'}
+                  </button>
                 </td>
               </tr>
             ))}
@@ -125,7 +271,6 @@ export default function AdminPanel({ session, initialUsers }: AdminPanelProps) {
         </table>
       </section>
 
-      {/* Formulaire de modification */}
       {editingUser && (
         <section className="admin-section">
           <h2 className="admin-section-title">Modifier l’utilisateur</h2>

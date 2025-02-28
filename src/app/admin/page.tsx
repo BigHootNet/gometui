@@ -2,14 +2,7 @@
 import { redirect } from 'next/navigation';
 import { ExtendedSession } from '@/types/next-auth';
 import { cookies } from 'next/headers';
-import AdminPanel from './AdminPanel'; // Import du composant client
-
-// Données simulées (en mémoire pour l'instant)
-let users = [
-  { id: '1', name: 'Test User', email: 'test@example.com', role: 'admin' },
-  { id: '2', name: 'John Doe', email: 'john@example.com', role: 'user' },
-  { id: '3', name: 'Jane Smith', email: 'jane@example.com', role: 'user' },
-];
+import AdminPanel from './AdminPanel';
 
 export default async function AdminPage() {
   const cookieStore = await cookies();
@@ -21,13 +14,20 @@ export default async function AdminPage() {
       headers: sessionToken ? { Cookie: `next-auth.session-token=${sessionToken.value}` } : {},
       cache: 'no-store',
     });
-    const text = await response.text();
-    if (response.ok && text) {
-      const sessionData = JSON.parse(text);
-      session = sessionData.error ? null : (sessionData as ExtendedSession);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch session: ${response.status}`);
     }
+    const text = await response.text();
+    if (!text) {
+      throw new Error('Empty response from /api/session');
+    }
+    const sessionData = JSON.parse(text);
+    session = sessionData.error ? null : (sessionData as ExtendedSession);
   } catch (error) {
-    // Silencieux en production
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error fetching session in AdminPage:', error);
+    }
+    redirect('/login'); // Rediriger vers /login en cas d’erreur
   }
 
   if (!session || !session.user) {
@@ -39,5 +39,5 @@ export default async function AdminPage() {
     redirect('/');
   }
 
-  return <AdminPanel session={session} initialUsers={users} />;
+  return <AdminPanel session={session} />;
 }

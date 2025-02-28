@@ -120,26 +120,6 @@ eval("Promise.resolve(/*! import() eager */).then(__webpack_require__.t.bind(__w
 
 /***/ }),
 
-/***/ "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-client-entry-loader.js?modules=%7B%22request%22%3A%22H%3A%5C%5Cwww%5C%5CGometUI%5C%5Cgometui%5C%5Csrc%5C%5Capp%5C%5Cglobals.css%22%2C%22ids%22%3A%5B%5D%7D&server=true!":
-/*!******************************************************************************************************************************************************************************************************************************************!*\
-  !*** ./node_modules/next/dist/build/webpack/loaders/next-flight-client-entry-loader.js?modules=%7B%22request%22%3A%22H%3A%5C%5Cwww%5C%5CGometUI%5C%5Cgometui%5C%5Csrc%5C%5Capp%5C%5Cglobals.css%22%2C%22ids%22%3A%5B%5D%7D&server=true! ***!
-  \******************************************************************************************************************************************************************************************************************************************/
-/***/ (() => {
-
-
-
-/***/ }),
-
-/***/ "(ssr)/./node_modules/next/dist/build/webpack/loaders/next-flight-client-entry-loader.js?modules=%7B%22request%22%3A%22H%3A%5C%5Cwww%5C%5CGometUI%5C%5Cgometui%5C%5Csrc%5C%5Capp%5C%5Cglobals.css%22%2C%22ids%22%3A%5B%5D%7D&server=true!":
-/*!******************************************************************************************************************************************************************************************************************************************!*\
-  !*** ./node_modules/next/dist/build/webpack/loaders/next-flight-client-entry-loader.js?modules=%7B%22request%22%3A%22H%3A%5C%5Cwww%5C%5CGometUI%5C%5Cgometui%5C%5Csrc%5C%5Capp%5C%5Cglobals.css%22%2C%22ids%22%3A%5B%5D%7D&server=true! ***!
-  \******************************************************************************************************************************************************************************************************************************************/
-/***/ (() => {
-
-
-
-/***/ }),
-
 /***/ "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-client-entry-loader.js?modules=%7B%22request%22%3A%22H%3A%5C%5Cwww%5C%5CGometUI%5C%5Cgometui%5C%5Csrc%5C%5Capp%5C%5Cpage.tsx%22%2C%22ids%22%3A%5B%5D%7D&server=true!":
 /*!***************************************************************************************************************************************************************************************************************************************!*\
   !*** ./node_modules/next/dist/build/webpack/loaders/next-flight-client-entry-loader.js?modules=%7B%22request%22%3A%22H%3A%5C%5Cwww%5C%5CGometUI%5C%5Cgometui%5C%5Csrc%5C%5Capp%5C%5Cpage.tsx%22%2C%22ids%22%3A%5B%5D%7D&server=true! ***!
@@ -157,6 +137,26 @@ eval("Promise.resolve(/*! import() eager */).then(__webpack_require__.bind(__web
 /***/ ((__unused_webpack_module, __unused_webpack_exports, __webpack_require__) => {
 
 eval("Promise.resolve(/*! import() eager */).then(__webpack_require__.bind(__webpack_require__, /*! ./src/app/page.tsx */ \"(ssr)/./src/app/page.tsx\"));\n//# sourceURL=[module]\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiKHNzcikvLi9ub2RlX21vZHVsZXMvbmV4dC9kaXN0L2J1aWxkL3dlYnBhY2svbG9hZGVycy9uZXh0LWZsaWdodC1jbGllbnQtZW50cnktbG9hZGVyLmpzP21vZHVsZXM9JTdCJTIycmVxdWVzdCUyMiUzQSUyMkglM0ElNUMlNUN3d3clNUMlNUNHb21ldFVJJTVDJTVDZ29tZXR1aSU1QyU1Q3NyYyU1QyU1Q2FwcCU1QyU1Q3BhZ2UudHN4JTIyJTJDJTIyaWRzJTIyJTNBJTVCJTVEJTdEJnNlcnZlcj10cnVlISIsIm1hcHBpbmdzIjoiQUFBQSxnSkFBa0YiLCJzb3VyY2VzIjpbIiJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQoLyogd2VicGFja01vZGU6IFwiZWFnZXJcIiAqLyBcIkg6XFxcXHd3d1xcXFxHb21ldFVJXFxcXGdvbWV0dWlcXFxcc3JjXFxcXGFwcFxcXFxwYWdlLnRzeFwiKTtcbiJdLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VSb290IjoiIn0=\n//# sourceURL=webpack-internal:///(ssr)/./node_modules/next/dist/build/webpack/loaders/next-flight-client-entry-loader.js?modules=%7B%22request%22%3A%22H%3A%5C%5Cwww%5C%5CGometUI%5C%5Cgometui%5C%5Csrc%5C%5Capp%5C%5Cpage.tsx%22%2C%22ids%22%3A%5B%5D%7D&server=true!\n");
+
+/***/ }),
+
+/***/ "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-client-entry-loader.js?server=true!":
+/*!******************************************************************************************************!*\
+  !*** ./node_modules/next/dist/build/webpack/loaders/next-flight-client-entry-loader.js?server=true! ***!
+  \******************************************************************************************************/
+/***/ (() => {
+
+
+
+/***/ }),
+
+/***/ "(ssr)/./node_modules/next/dist/build/webpack/loaders/next-flight-client-entry-loader.js?server=true!":
+/*!******************************************************************************************************!*\
+  !*** ./node_modules/next/dist/build/webpack/loaders/next-flight-client-entry-loader.js?server=true! ***!
+  \******************************************************************************************************/
+/***/ (() => {
+
+
 
 /***/ }),
 
@@ -193,17 +193,6 @@ eval("__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpac
 
 /***/ }),
 
-/***/ "(rsc)/./src/app/globals.css":
-/*!*****************************!*\
-  !*** ./src/app/globals.css ***!
-  \*****************************/
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-"use strict";
-eval("__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpack_require__.d(__webpack_exports__, {\n/* harmony export */   \"default\": () => (__WEBPACK_DEFAULT_EXPORT__)\n/* harmony export */ });\n/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (\"64ca0ed1b3cd\");\nif (false) {}\n//# sourceURL=[module]\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiKHJzYykvLi9zcmMvYXBwL2dsb2JhbHMuY3NzIiwibWFwcGluZ3MiOiI7Ozs7QUFBQSxpRUFBZSxjQUFjO0FBQzdCLElBQUksS0FBVSxFQUFFLEVBQXVCIiwic291cmNlcyI6WyJIOlxcd3d3XFxHb21ldFVJXFxnb21ldHVpXFxzcmNcXGFwcFxcZ2xvYmFscy5jc3MiXSwic291cmNlc0NvbnRlbnQiOlsiZXhwb3J0IGRlZmF1bHQgXCI2NGNhMGVkMWIzY2RcIlxuaWYgKG1vZHVsZS5ob3QpIHsgbW9kdWxlLmhvdC5hY2NlcHQoKSB9XG4iXSwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlUm9vdCI6IiJ9\n//# sourceURL=webpack-internal:///(rsc)/./src/app/globals.css\n");
-
-/***/ }),
-
 /***/ "(rsc)/./src/app/layout.tsx":
 /*!****************************!*\
   !*** ./src/app/layout.tsx ***!
@@ -211,7 +200,7 @@ eval("__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpac
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 "use strict";
-eval("__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpack_require__.d(__webpack_exports__, {\n/* harmony export */   \"default\": () => (/* binding */ RootLayout),\n/* harmony export */   metadata: () => (/* binding */ metadata)\n/* harmony export */ });\n/* harmony import */ var react_jsx_dev_runtime__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react/jsx-dev-runtime */ \"(rsc)/./node_modules/next/dist/server/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime.js\");\n/* harmony import */ var react_jsx_dev_runtime__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(react_jsx_dev_runtime__WEBPACK_IMPORTED_MODULE_0__);\n/* harmony import */ var _globals_css__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./globals.css */ \"(rsc)/./src/app/globals.css\");\n\n // Si tu utilises du CSS global\nconst metadata = {\n    title: 'Mon Projet Réutilisable',\n    description: 'Base solide pour des projets web'\n};\nfunction RootLayout({ children }) {\n    return /*#__PURE__*/ (0,react_jsx_dev_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxDEV)(\"html\", {\n        lang: \"fr\",\n        children: /*#__PURE__*/ (0,react_jsx_dev_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxDEV)(\"body\", {\n            children: /*#__PURE__*/ (0,react_jsx_dev_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxDEV)(\"main\", {\n                children: children\n            }, void 0, false, {\n                fileName: \"H:\\\\www\\\\GometUI\\\\gometui\\\\src\\\\app\\\\layout.tsx\",\n                lineNumber: 13,\n                columnNumber: 9\n            }, this)\n        }, void 0, false, {\n            fileName: \"H:\\\\www\\\\GometUI\\\\gometui\\\\src\\\\app\\\\layout.tsx\",\n            lineNumber: 12,\n            columnNumber: 7\n        }, this)\n    }, void 0, false, {\n        fileName: \"H:\\\\www\\\\GometUI\\\\gometui\\\\src\\\\app\\\\layout.tsx\",\n        lineNumber: 11,\n        columnNumber: 5\n    }, this);\n}\n//# sourceURL=[module]\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiKHJzYykvLi9zcmMvYXBwL2xheW91dC50c3giLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7O0FBQ3VCLENBQUMsK0JBQStCO0FBRWhELE1BQU1BLFdBQVc7SUFDdEJDLE9BQU87SUFDUEMsYUFBYTtBQUNmLEVBQUU7QUFFYSxTQUFTQyxXQUFXLEVBQUVDLFFBQVEsRUFBMkI7SUFDdEUscUJBQ0UsOERBQUNDO1FBQUtDLE1BQUs7a0JBQ1QsNEVBQUNDO3NCQUNDLDRFQUFDQzswQkFBTUo7Ozs7Ozs7Ozs7Ozs7Ozs7QUFJZiIsInNvdXJjZXMiOlsiSDpcXHd3d1xcR29tZXRVSVxcZ29tZXR1aVxcc3JjXFxhcHBcXGxheW91dC50c3giXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgUmVhY3ROb2RlIH0gZnJvbSAncmVhY3QnO1xuaW1wb3J0ICcuL2dsb2JhbHMuY3NzJzsgLy8gU2kgdHUgdXRpbGlzZXMgZHUgQ1NTIGdsb2JhbFxuXG5leHBvcnQgY29uc3QgbWV0YWRhdGEgPSB7XG4gIHRpdGxlOiAnTW9uIFByb2pldCBSw6l1dGlsaXNhYmxlJyxcbiAgZGVzY3JpcHRpb246ICdCYXNlIHNvbGlkZSBwb3VyIGRlcyBwcm9qZXRzIHdlYicsXG59O1xuXG5leHBvcnQgZGVmYXVsdCBmdW5jdGlvbiBSb290TGF5b3V0KHsgY2hpbGRyZW4gfTogeyBjaGlsZHJlbjogUmVhY3ROb2RlIH0pIHtcbiAgcmV0dXJuIChcbiAgICA8aHRtbCBsYW5nPVwiZnJcIj5cbiAgICAgIDxib2R5PlxuICAgICAgICA8bWFpbj57Y2hpbGRyZW59PC9tYWluPlxuICAgICAgPC9ib2R5PlxuICAgIDwvaHRtbD5cbiAgKTtcbn0iXSwibmFtZXMiOlsibWV0YWRhdGEiLCJ0aXRsZSIsImRlc2NyaXB0aW9uIiwiUm9vdExheW91dCIsImNoaWxkcmVuIiwiaHRtbCIsImxhbmciLCJib2R5IiwibWFpbiJdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlUm9vdCI6IiJ9\n//# sourceURL=webpack-internal:///(rsc)/./src/app/layout.tsx\n");
+eval("__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpack_require__.d(__webpack_exports__, {\n/* harmony export */   \"default\": () => (/* binding */ RootLayout)\n/* harmony export */ });\n/* harmony import */ var react_jsx_dev_runtime__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react/jsx-dev-runtime */ \"(rsc)/./node_modules/next/dist/server/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime.js\");\n/* harmony import */ var react_jsx_dev_runtime__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(react_jsx_dev_runtime__WEBPACK_IMPORTED_MODULE_0__);\n// src/app/layout.tsx\n\nfunction RootLayout({ children }) {\n    return /*#__PURE__*/ (0,react_jsx_dev_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxDEV)(\"html\", {\n        lang: \"fr\",\n        children: /*#__PURE__*/ (0,react_jsx_dev_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxDEV)(\"body\", {\n            children: children\n        }, void 0, false, {\n            fileName: \"H:\\\\www\\\\GometUI\\\\gometui\\\\src\\\\app\\\\layout.tsx\",\n            lineNumber: 7,\n            columnNumber: 7\n        }, this)\n    }, void 0, false, {\n        fileName: \"H:\\\\www\\\\GometUI\\\\gometui\\\\src\\\\app\\\\layout.tsx\",\n        lineNumber: 6,\n        columnNumber: 5\n    }, this);\n}\n//# sourceURL=[module]\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiKHJzYykvLi9zcmMvYXBwL2xheW91dC50c3giLCJtYXBwaW5ncyI6Ijs7Ozs7O0FBQUEscUJBQXFCOztBQUdOLFNBQVNBLFdBQVcsRUFBRUMsUUFBUSxFQUEyQjtJQUN0RSxxQkFDRSw4REFBQ0M7UUFBS0MsTUFBSztrQkFDVCw0RUFBQ0M7c0JBQU1IOzs7Ozs7Ozs7OztBQUdiIiwic291cmNlcyI6WyJIOlxcd3d3XFxHb21ldFVJXFxnb21ldHVpXFxzcmNcXGFwcFxcbGF5b3V0LnRzeCJdLCJzb3VyY2VzQ29udGVudCI6WyIvLyBzcmMvYXBwL2xheW91dC50c3hcbmltcG9ydCB7IFJlYWN0Tm9kZSB9IGZyb20gJ3JlYWN0JztcblxuZXhwb3J0IGRlZmF1bHQgZnVuY3Rpb24gUm9vdExheW91dCh7IGNoaWxkcmVuIH06IHsgY2hpbGRyZW46IFJlYWN0Tm9kZSB9KSB7XG4gIHJldHVybiAoXG4gICAgPGh0bWwgbGFuZz1cImZyXCI+XG4gICAgICA8Ym9keT57Y2hpbGRyZW59PC9ib2R5PlxuICAgIDwvaHRtbD5cbiAgKTtcbn0iXSwibmFtZXMiOlsiUm9vdExheW91dCIsImNoaWxkcmVuIiwiaHRtbCIsImxhbmciLCJib2R5Il0sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VSb290IjoiIn0=\n//# sourceURL=webpack-internal:///(rsc)/./src/app/layout.tsx\n");
 
 /***/ }),
 

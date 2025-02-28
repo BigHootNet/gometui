@@ -24,7 +24,7 @@ export const authOptions: NextAuthOptions = {
     signIn: '/login',
   },
   secret: process.env.NEXTAUTH_SECRET || 'temporary-secret-for-testing',
-  debug: false, // Désactive le mode debug
+  debug: true, // Désactive le mode debug
   session: {
     strategy: 'jwt' as const,
   },
