@@ -7,12 +7,12 @@ import { User } from '../types';
 interface ModalState {
   isOpen: boolean;
   message: string;
-  onConfirm: () => Promise<void> | void;
+  onConfirm: () => Promise<void>;
 }
 
 export const useUserManagement = (session: ExtendedSession) => {
   const [error, setError] = useState<string | null>(null);
-  const [modal, setModal] = useState<ModalState>({ isOpen: false, message: '', onConfirm: () => {} });
+  const [modal, setModal] = useState<ModalState>({ isOpen: false, message: '', onConfirm: async () => {} });
   const [refreshKey, setRefreshKey] = useState(0);
 
   const handleApiError = (error: any, message: string) => {
@@ -20,7 +20,7 @@ export const useUserManagement = (session: ExtendedSession) => {
     console.error(message, error);
   };
 
-  const openModal = (message: string, onConfirm: () => Promise<void> | void) => {
+  const openModal = (message: string, onConfirm: () => Promise<void>) => {
     console.log('openModal called with message:', message);
     setModal({ isOpen: true, message, onConfirm });
   };
@@ -61,7 +61,7 @@ export const useUserManagement = (session: ExtendedSession) => {
           body: JSON.stringify({ id }),
         });
         if (!res.ok) throw new Error(`Failed to delete user: ${res.status}`);
-        await logAction(session.user.id, 'delete_user', id, 'Utilisateur supprimé');
+        await logAction(session.user.id, 'delete_user', id, 'Utilisateur supprimé', 'Utilisateur supprimé de la base');
         setRefreshKey((prev) => prev + 1);
         closeModal();
       } catch (error) {
@@ -107,7 +107,13 @@ export const useUserManagement = (session: ExtendedSession) => {
         if (!res.ok) throw new Error(`Failed to update user: ${res.status}`);
         const updatedUser = await res.json();
         console.log('User ban status updated:', updatedUser);
-        await logAction(session.user.id, newBanned === 1 ? 'ban_user' : 'unban_user', id, updatedUser.name);
+        await logAction(
+          session.user.id,
+          newBanned === 1 ? 'ban_user' : 'unban_user',
+          id,
+          updatedUser.name,
+          `Statut de bannissement changé de ${userToBan.banned} à ${newBanned}`
+        );
         setRefreshKey((prev) => prev + 1);
         closeModal();
       } catch (error) {
@@ -145,7 +151,13 @@ export const useUserManagement = (session: ExtendedSession) => {
         });
         if (!res.ok) throw new Error(`Failed to update user: ${res.status}`);
         const updatedUser = await res.json();
-        await logAction(session.user.id, `change_role_to_${newRole}`, id, updatedUser.name);
+        await logAction(
+          session.user.id,
+          `change_role_to_${newRole}`,
+          id,
+          updatedUser.name,
+          `Rôle modifié de "${currentRole}" à "${newRole}"`
+        );
         setRefreshKey((prev) => prev + 1);
         closeModal();
       } catch (error) {
@@ -173,7 +185,7 @@ export const useUserManagement = (session: ExtendedSession) => {
           id: user.id,
           name: user.name,
           email: user.email,
-          password: user.password || undefined, // Envoyer le mot de passe brut si fourni
+          password: user.password || undefined,
           role: currentUser.role,
           banned: currentUser.banned,
         };
@@ -192,7 +204,10 @@ export const useUserManagement = (session: ExtendedSession) => {
         const updatedUser = await res.json();
         console.log('PUT response received:', updatedUser);
 
-        await logAction(session.user.id, 'update_profile', user.id, updatedUser.name);
+        const details = `Nom modifié de "${currentUser.name}" à "${updatedUser.name}"${
+          user.password ? ', mot de passe mis à jour' : ''
+        }`;
+        await logAction(session.user.id, 'update_profile', user.id, updatedUser.name, details);
         console.log('Profile update logged successfully');
         setRefreshKey((prev) => prev + 1);
         closeModal();

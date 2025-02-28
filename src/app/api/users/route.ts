@@ -1,7 +1,7 @@
 // src/app/api/users/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs'; // Changé de bcrypt à bcryptjs
 import db from '@/lib/db';
 
 interface User {
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
   try {
     const { name, email, password, role } = await req.json();
     if (!password) throw new Error('Password is required');
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    const hashedPassword = bcrypt.hashSync(password, saltRounds); // Changé à hashSync
     const id = uuidv4();
     insertUser.run(id, name, email, hashedPassword, role, 0);
     console.log('User added:', { id, name, email, role, hashedPassword });
@@ -105,7 +105,7 @@ export async function PUT(req: NextRequest) {
 
     const updatedName = name !== undefined ? name : user.name;
     const updatedEmail = email !== undefined ? email : user.email;
-    const updatedPassword = password && password.trim() !== '' ? await bcrypt.hash(password, saltRounds) : user.password;
+    const updatedPassword = password && password.trim() !== '' ? bcrypt.hashSync(password, saltRounds) : user.password; // Changé à hashSync
     const updatedRole = role !== undefined ? role : user.role;
     const updatedBanned = banned !== undefined ? banned : user.banned;
 

@@ -10,8 +10,6 @@ import UserList from './components/UserList';
 import ActionLogs from './components/ActionLogs';
 import Modal from './components/Modal';
 import StatsSection from './components/StatsSection';
-import { fetchStats } from './utils/api';
-import { useUserManagement } from './hooks/useUserManagement';
 import { User, Stats } from './types';
 import '../../styles/admin.css';
 
@@ -22,21 +20,10 @@ interface AdminPanelProps {
 export default function AdminPanel({ session }: AdminPanelProps) {
   const [stats, setStats] = useState<Stats | null>(null);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMessage, setModalMessage] = useState('');
   const [refreshLogsKey, setRefreshLogsKey] = useState(0);
-
-  const {
-    error,
-    setError,
-    modal,
-    openModal, // Utiliser openModal du hook
-    closeModal,
-    refreshKey,
-    handleAddUser,
-    handleUpdateUser,
-    handleDeleteUser,
-    handleBanUser,
-    handleToggleRole,
-  } = useUserManagement(session);
 
   useEffect(() => {
     loadStats();
@@ -44,7 +31,9 @@ export default function AdminPanel({ session }: AdminPanelProps) {
 
   const loadStats = async () => {
     try {
-      const statsData = await fetchStats();
+      const res = await fetch('/api/users?type=stats');
+      if (!res.ok) throw new Error(`Failed to fetch stats: ${res.status}`);
+      const statsData = await res.json();
       setStats(statsData);
     } catch (err) {
       setError('Erreur lors du chargement des statistiques');
@@ -53,11 +42,25 @@ export default function AdminPanel({ session }: AdminPanelProps) {
 
   const handleLogout = () => {
     console.log('handleLogout called');
-    openModal('Voulez-vous vraiment vous déconnecter ?', async () => {
-      console.log('Modal confirm action for logout');
-      await signOut({ callbackUrl: '/login' });
-      closeModal();
-    });
+    setModalMessage('Voulez-vous vraiment vous déconnecter ?');
+    setIsModalOpen(true);
+  };
+
+  const confirmLogout = async () => {
+    console.log('Modal confirm action for logout');
+    await signOut({ callbackUrl: '/login' });
+    setIsModalOpen(false);
+  };
+
+  const handleAddUser = async (user: { id: string; name: string; email: string; password: string; role: 'superadmin' | 'admin' | 'user'; banned: number }) => {
+    console.log('User added:', user);
+    setRefreshLogsKey((prev: number) => prev + 1);
+  };
+
+  const handleUpdateUser = (updatedUser: User) => {
+    console.log('User updated:', updatedUser);
+    setEditingUser(null);
+    setRefreshLogsKey((prev: number) => prev + 1);
   };
 
   return (
@@ -73,15 +76,8 @@ export default function AdminPanel({ session }: AdminPanelProps) {
 
       <StatsSection stats={stats} />
       <AddUserForm session={session} onAddUser={handleAddUser} setError={setError} />
-      <UserList
-        session={session}
-        onEditUser={setEditingUser}
-        onUserDeleted={handleDeleteUser}
-        onUserBanned={handleBanUser}
-        onUserRoleToggled={handleToggleRole}
-        refreshTrigger={refreshKey}
-      />
-      <ActionLogs refreshLogs={() => setRefreshLogsKey((prev) => prev + 1)} />
+      <UserList session={session} />
+      <ActionLogs refreshLogs={() => setRefreshLogsKey((prev: number) => prev + 1)} />
       {editingUser && (
         <EditUserForm
           user={editingUser}
@@ -92,13 +88,10 @@ export default function AdminPanel({ session }: AdminPanelProps) {
         />
       )}
       <Modal
-        isOpen={modal.isOpen}
-        message={modal.message}
-        onConfirm={() => {
-          console.log('Modal confirmed');
-          modal.onConfirm();
-        }}
-        onCancel={closeModal}
+        isOpen={isModalOpen}
+        message={modalMessage}
+        onConfirm={confirmLogout}
+        onCancel={() => setIsModalOpen(false)}
       />
     </div>
   );

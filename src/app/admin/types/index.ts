@@ -3,7 +3,7 @@ export interface User {
     id: string;
     name: string;
     email: string;
-    password: string;
+    password?: string;
     role: 'superadmin' | 'admin' | 'user';
     banned?: number;
   }
@@ -23,5 +23,4 @@ export interface User {
     roles: { [key: string]: number };
   }
   
-  // Réexportation correcte avec 'export type'
   export type { ExtendedSession } from '@/types/next-auth';

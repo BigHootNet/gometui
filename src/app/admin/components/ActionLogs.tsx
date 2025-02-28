@@ -3,23 +3,25 @@
 
 import { useState, useEffect } from 'react';
 import { Log } from '../types';
-import { fetchLogs } from '../utils/api';
 import '../../../styles/admin.css';
 
 interface ActionLogsProps {
   initialLogs?: Log[];
-  refreshLogs?: () => void; // Nouvelle prop pour recharger
+  refreshLogs?: () => void;
 }
 
 export default function ActionLogs({ initialLogs = [], refreshLogs }: ActionLogsProps) {
   const [logs, setLogs] = useState<Log[]>(initialLogs);
   const [totalLogs, setTotalLogs] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
+  const [refreshKey, setRefreshKey] = useState(0);
   const itemsPerPage = 5;
 
   const loadLogs = async () => {
     try {
-      const { logs: fetchedLogs, total } = await fetchLogs(itemsPerPage, (currentPage - 1) * itemsPerPage);
+      const res = await fetch(`/api/logs?limit=${itemsPerPage}&offset=${(currentPage - 1) * itemsPerPage}`);
+      if (!res.ok) throw new Error(`Failed to fetch logs: ${res.status}`);
+      const { logs: fetchedLogs, total } = await res.json();
       setLogs(fetchedLogs);
       setTotalLogs(total);
     } catch (error) {
@@ -29,7 +31,13 @@ export default function ActionLogs({ initialLogs = [], refreshLogs }: ActionLogs
 
   useEffect(() => {
     loadLogs();
-  }, [currentPage, refreshLogs]); // Ajouter refreshLogs comme dépendance
+  }, [currentPage, refreshKey]);
+
+  useEffect(() => {
+    if (refreshLogs) {
+      setRefreshKey((prev: number) => prev + 1);
+    }
+  }, [refreshLogs]);
 
   const totalPages = Math.ceil(totalLogs / itemsPerPage);
 

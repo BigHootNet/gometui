@@ -4,8 +4,6 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { ExtendedSession } from '@/types/next-auth';
-import { useUserManagement } from '@/app/admin/hooks/useUserManagement';
-import Modal from '@/app/admin/components/Modal';
 import '../../styles/profile.css';
 
 export default function ProfilePage() {
@@ -14,25 +12,28 @@ export default function ProfilePage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-
-  const { error, setError, modal, openModal, closeModal, handleUpdateProfile } = useUserManagement(
-    extendedSession || { user: { id: '', name: '', email: '', role: 'user' } } as ExtendedSession
-  );
+  const [error, setError] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const fetchUserData = async () => {
     if (!extendedSession?.user) return;
     setIsLoading(true);
-    const response = await fetch(`/api/users?id=${extendedSession.user.id}`, { cache: 'no-store' });
-    if (response.ok) {
+    try {
+      const response = await fetch(`/api/users?id=${extendedSession.user.id}`, { cache: 'no-store' });
+      if (!response.ok) throw new Error(`Failed to fetch user data: ${response.status}`);
       const { users } = await response.json();
       const user = users[0];
       console.log('User data fetched from base:', user);
       setName(user.name);
       setEmail(user.email);
-    } else {
-      console.error('Failed to fetch user data:', response.status);
+      setAvatarPreview(user.avatar || null);
+    } catch (err) {
+      console.error('Failed to fetch user data:', err);
+      setError('Erreur lors du chargement des données utilisateur');
     }
     setIsLoading(false);
   };
@@ -60,45 +61,69 @@ export default function ProfilePage() {
     return true;
   };
 
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAvatarFile(file);
+      setAvatarPreview(URL.createObjectURL(file));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!extendedSession?.user) return;
 
     if (!validateFields()) return;
 
-    const initialName = name;
-    console.log('Initial name before update:', initialName);
-
-    await handleUpdateProfile({
-      id: extendedSession.user.id,
-      name,
-      email,
-      password: password || undefined,
-    });
+    setIsModalOpen(true);
   };
 
-  const syncProfileData = async () => {
+  const confirmUpdate = async () => {
     if (!extendedSession?.user) return;
 
-    const response = await fetch(`/api/users?id=${extendedSession.user.id}`, { cache: 'no-store' });
-    if (response.ok) {
-      const { users } = await response.json();
-      const updatedUser = users[0];
-      console.log('User data re-fetched from base:', updatedUser);
-      setName(updatedUser.name);
-      setEmail(updatedUser.email);
-      setPassword(''); // Réinitialiser le champ mot de passe après mise à jour
+    try {
+      // Upload de l'avatar si présent
+      if (avatarFile) {
+        const formData = new FormData();
+        formData.append('file', avatarFile);
+        formData.append('userId', extendedSession.user.id);
+        formData.append('type', 'avatar');
+
+        const uploadRes = await fetch('/api/uploads', {
+          method: 'POST',
+          body: formData,
+        });
+        if (!uploadRes.ok) throw new Error(`Failed to upload avatar: ${uploadRes.status}`);
+      }
+
+      // Mise à jour des autres champs
+      const updatedUserData = {
+        id: extendedSession.user.id,
+        name,
+        email,
+        password: password || undefined,
+      };
+
+      const res = await fetch('/api/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedUserData),
+      });
+      if (!res.ok) throw new Error(`Failed to update user: ${res.status}`);
+      const updatedUser = await res.json();
+      console.log('Profile update response:', updatedUser);
 
       await update({ name: updatedUser.name, email: updatedUser.email });
-      console.log('Session synced with:', { name: updatedUser.name, email: updatedUser.email });
-
       setNotification({ message: 'Profil mis à jour avec succès !', type: 'success' });
-      setTimeout(() => setNotification(null), 3000); // Disparaît après 3 secondes
-
-      window.dispatchEvent(new Event('profileUpdated')); // Notifier /admin
-    } else {
-      console.error('Failed to re-fetch user data:', response.status);
+      setPassword('');
+      setAvatarFile(null);
+      setTimeout(() => setNotification(null), 3000);
+      window.dispatchEvent(new Event('profileUpdated'));
+    } catch (err) {
+      console.error('Error updating profile:', err);
       setNotification({ message: 'Échec de la mise à jour du profil.', type: 'error' });
+    } finally {
+      setIsModalOpen(false);
     }
   };
 
@@ -113,6 +138,11 @@ export default function ProfilePage() {
       {notification && (
         <div className={`notification ${notification.type}`}>
           {notification.message}
+        </div>
+      )}
+      {avatarPreview && (
+        <div>
+          <img src={avatarPreview} alt="Avatar Preview" style={{ maxWidth: '100px', borderRadius: '50%' }} />
         </div>
       )}
       <form onSubmit={handleSubmit}>
@@ -143,19 +173,47 @@ export default function ProfilePage() {
             className="profile-input"
           />
         </label>
+        <label>
+          Avatar :
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleAvatarChange}
+            className="profile-input"
+          />
+        </label>
         <button type="submit" className="profile-button">Mettre à jour</button>
       </form>
       {error && <p style={{ color: 'red' }}>{error}</p>}
       <Modal
-        isOpen={modal.isOpen}
-        message={modal.message}
-        onConfirm={async () => {
-          console.log('Modal confirmed');
-          await modal.onConfirm();
-          await syncProfileData();
-        }}
-        onCancel={closeModal}
+        isOpen={isModalOpen}
+        message="Voulez-vous vraiment mettre à jour votre profil ?"
+        onConfirm={confirmUpdate}
+        onCancel={() => setIsModalOpen(false)}
       />
+    </div>
+  );
+}
+
+interface ModalProps {
+  isOpen: boolean;
+  message: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+function Modal({ isOpen, message, onConfirm, onCancel }: ModalProps) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content">
+        <p>{message}</p>
+        <div className="modal-buttons">
+          <button onClick={onConfirm} className="admin-button">Confirmer</button>
+          <button onClick={onCancel} className="admin-button admin-button-cancel">Annuler</button>
+        </div>
+      </div>
     </div>
   );
 }

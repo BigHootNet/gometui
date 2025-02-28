@@ -2,7 +2,7 @@
 import NextAuth, { NextAuthOptions, Session } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { JWT } from 'next-auth/jwt';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs'; // Changé de bcrypt à bcryptjs
 import db from '@/lib/db';
 
 const findUserByEmail = db.prepare('SELECT * FROM users WHERE email = ?');
@@ -40,7 +40,7 @@ export const authOptions: NextAuthOptions = {
 
         console.log('User found:', { email, banned: user.banned, storedHash: user.password });
         console.log('Provided password:', password);
-        const isValid = await bcrypt.compare(password, user.password); // Utiliser compare async
+        const isValid = bcrypt.compareSync(password, user.password); // Changé à compareSync
         console.log('Password valid:', isValid);
 
         if (!isValid) {

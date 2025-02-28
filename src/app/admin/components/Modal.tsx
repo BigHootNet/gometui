@@ -17,16 +17,22 @@ export default function Modal({ isOpen, message, onConfirm, onCancel }: ModalPro
       <div className="modal-content">
         <p>{message}</p>
         <div className="modal-buttons">
-          <button onClick={() => {
-            console.log('Confirm button clicked');
-            onConfirm();
-          }} className="admin-button">
+          <button
+            onClick={() => {
+              console.log('Confirm button clicked');
+              onConfirm();
+            }}
+            className="admin-button"
+          >
             Confirmer
           </button>
-          <button onClick={() => {
-            console.log('Cancel button clicked');
-            onCancel();
-          }} className="admin-button admin-button-cancel">
+          <button
+            onClick={() => {
+              console.log('Cancel button clicked');
+              onCancel();
+            }}
+            className="admin-button admin-button-cancel"
+          >
             Annuler
           </button>
         </div>

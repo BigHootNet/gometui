@@ -1,8 +1,9 @@
+// src/app/admin/components/EditUserForm.tsx
 "use client";
 
 import { FormEvent, useState } from 'react';
 import { User, ExtendedSession } from '../types';
-import '../../../styles/admin.css'; // Remonter de src/app/admin/components/ à src/styles/
+import '../../../styles/admin.css';
 
 interface EditUserFormProps {
   user: User;
@@ -36,7 +37,7 @@ export default function EditUserForm({ user, session, onUpdateUser, onCancel, se
         role: editingUser.role,
         banned: editingUser.banned,
       };
-      if (editingUser.password.trim() !== '') {
+      if (editingUser.password && editingUser.password.trim() !== '') {
         updatedUserData.password = editingUser.password;
       }
       const res = await fetch('/api/users', {
@@ -73,7 +74,7 @@ export default function EditUserForm({ user, session, onUpdateUser, onCancel, se
         />
         <input
           type="password"
-          value={editingUser.password}
+          value={editingUser.password || ''}
           onChange={(e) => setEditingUser({ ...editingUser, password: e.target.value })}
           placeholder="Nouveau mot de passe (optionnel)"
           className="admin-input"
