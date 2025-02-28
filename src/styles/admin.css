@@ -187,3 +187,29 @@
     padding: 5px;
     border-radius: 3px;
   }
+
+  .pagination {
+    margin-top: 15px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .pagination span {
+    font-size: 1rem;
+  }
+
+  .admin-select {
+    padding: 5px;
+    margin: 0 5px;
+    border-radius: 4px;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    cursor: pointer;
+  }
+  
+  .admin-select:disabled {
+    background-color: #e0e0e0;
+    cursor: not-allowed;
+  }

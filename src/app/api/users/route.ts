@@ -25,7 +25,8 @@ interface TotalCount {
 const saltRounds = 10;
 
 const insertUser = db.prepare('INSERT INTO users (id, name, email, password, role, banned) VALUES (?, ?, ?, ?, ?, ?)');
-const selectAllUsers = db.prepare('SELECT * FROM users');
+const selectAllUsers = db.prepare('SELECT * FROM users LIMIT ? OFFSET ?');
+const selectUserById = db.prepare('SELECT * FROM users WHERE id = ?');
 const updateUser = db.prepare('UPDATE users SET name = ?, email = ?, password = ?, role = ?, banned = ? WHERE id = ?');
 const deleteUser = db.prepare('DELETE FROM users WHERE id = ?');
 const countUsersByRole = db.prepare('SELECT role, COUNT(*) as count FROM users WHERE banned = 0 GROUP BY role');
@@ -34,6 +35,9 @@ const countTotalUsers = db.prepare('SELECT COUNT(*) as total FROM users WHERE ba
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const type = searchParams.get('type');
+  const id = searchParams.get('id');
+  const limit = parseInt(searchParams.get('limit') || '10', 10);
+  const offset = parseInt(searchParams.get('offset') || '0', 10);
 
   try {
     if (type === 'stats') {
@@ -46,13 +50,25 @@ export async function GET(req: NextRequest) {
       };
       return NextResponse.json(stats);
     }
-    const users = selectAllUsers.all() as User[];
-    return NextResponse.json(users);
+
+    if (id) {
+      const user = selectUserById.get(id) as User;
+      if (!user) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
+      return NextResponse.json({ users: [user], total: 1 });
+    }
+
+    const users = selectAllUsers.all(limit, offset) as User[];
+    const total = (countTotalUsers.get() as TotalCount).total;
+    return NextResponse.json({ users, total });
   } catch (error) {
+    console.error('Error in GET /api/users:', error);
     return NextResponse.json({ error: 'Failed to fetch data', details: String(error) }, { status: 500 });
   }
 }
 
+// ... (le reste du fichier reste inchangé : POST, PUT, DELETE)
 export async function POST(req: NextRequest) {
   try {
     const { name, email, password, role } = await req.json();
@@ -72,14 +88,23 @@ export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
     const { id, name, email, password, role, banned } = body;
-    const users = selectAllUsers.all() as User[];
-    const userToUpdate = users.find((u) => u.id === id);
-    if (!userToUpdate) throw new Error('User not found');
-    // Ne rehacher que si password est explicitement fourni et non vide
-    const hashedPassword = password && password.trim() !== '' ? await bcrypt.hash(password, saltRounds) : userToUpdate.password;
-    updateUser.run(name, email, hashedPassword, role, banned !== undefined ? banned : 0, id);
-    console.log('User updated:', { id, name, email, role, banned, hashedPassword, providedPassword: password });
-    return NextResponse.json({ id, name, email, password: hashedPassword, role, banned });
+    console.log('PUT /api/users received:', body);
+
+    const user = selectUserById.get(id) as User;
+    if (!user) {
+      console.error('User not found:', id);
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const updatedName = name !== undefined ? name : user.name;
+    const updatedEmail = email !== undefined ? email : user.email;
+    const updatedPassword = password && password.trim() !== '' ? await bcrypt.hash(password, saltRounds) : user.password;
+    const updatedRole = role !== undefined ? role : user.role;
+    const updatedBanned = banned !== undefined ? banned : user.banned;
+
+    updateUser.run(updatedName, updatedEmail, updatedPassword, updatedRole, updatedBanned, id);
+    console.log('User updated:', { id, name: updatedName, email: updatedEmail, role: updatedRole, banned: updatedBanned });
+    return NextResponse.json({ id, name: updatedName, email: updatedEmail, password: updatedPassword, role: updatedRole, banned: updatedBanned });
   } catch (error) {
     console.error('Error in PUT /api/users:', error);
     return NextResponse.json({ error: 'Failed to update user', details: String(error) }, { status: 500 });
@@ -90,8 +115,10 @@ export async function DELETE(req: NextRequest) {
   try {
     const { id } = await req.json();
     deleteUser.run(id);
+    console.log('User deleted:', id);
     return NextResponse.json({ message: 'User deleted' });
   } catch (error) {
+    console.error('Error in DELETE /api/users:', error);
     return NextResponse.json({ error: 'Failed to delete user', details: String(error) }, { status: 500 });
   }
 }
