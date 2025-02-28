@@ -24,6 +24,29 @@ interface AdminPanelProps {
   session: ExtendedSession;
 }
 
+interface ModalProps {
+  isOpen: boolean;
+  message: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+const Modal: React.FC<ModalProps> = ({ isOpen, message, onConfirm, onCancel }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content">
+        <p>{message}</p>
+        <div className="modal-buttons">
+          <button onClick={onConfirm} className="admin-button admin-button-confirm">Oui</button>
+          <button onClick={onCancel} className="admin-button admin-button-cancel">Non</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function AdminPanel({ session }: AdminPanelProps) {
   const [userList, setUserList] = useState<User[]>([]);
   const [newUser, setNewUser] = useState<{ name: string; email: string; password: string; role: 'superadmin' | 'admin' | 'user' }>({
@@ -35,6 +58,10 @@ export default function AdminPanel({ session }: AdminPanelProps) {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMessage, setModalMessage] = useState('');
+  const [modalAction, setModalAction] = useState<(() => void) | null>(null);
+  const [filterStatus, setFilterStatus] = useState<'all' | 'not_banned' | 'banned'>('not_banned'); // État du filtre
 
   useEffect(() => {
     fetchUsers();
@@ -65,6 +92,10 @@ export default function AdminPanel({ session }: AdminPanelProps) {
 
   const handleAddUser = async (e: FormEvent) => {
     e.preventDefault();
+    if (session.user.role === 'admin' && (newUser.role === 'admin' || newUser.role === 'superadmin')) {
+      setError('Les admins ne peuvent pas créer d’autres admins ou superadmins.');
+      return;
+    }
     try {
       const res = await fetch('/api/users', {
         method: 'POST',
@@ -89,6 +120,10 @@ export default function AdminPanel({ session }: AdminPanelProps) {
   const handleUpdateUser = async (e: FormEvent) => {
     e.preventDefault();
     if (editingUser) {
+      if (session.user.role === 'admin' && (editingUser.role === 'admin' || editingUser.role === 'superadmin')) {
+        setError('Les admins ne peuvent pas assigner des rôles admin ou superadmin.');
+        return;
+      }
       try {
         const res = await fetch('/api/users', {
           method: 'PUT',
@@ -108,19 +143,47 @@ export default function AdminPanel({ session }: AdminPanelProps) {
     }
   };
 
+  const openModal = (message: string, action: () => void) => {
+    setModalMessage(message);
+    setModalAction(() => action);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setModalMessage('');
+    setModalAction(null);
+  };
+
   const handleDeleteUser = async (id: string) => {
-    try {
-      const res = await fetch('/api/users', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
-      });
-      if (!res.ok) throw new Error(`Failed to delete user: ${res.status}`);
-      setUserList(userList.filter((u) => u.id !== id));
-      await fetchStats();
-    } catch (error) {
-      setError('Erreur lors de la suppression de l’utilisateur');
+    const userToDelete = userList.find((u) => u.id === id);
+    if (!userToDelete) return;
+
+    if (id === session.user.id) {
+      setError('Vous ne pouvez pas vous supprimer vous-même.');
+      return;
     }
+    if (session.user.role !== 'superadmin') {
+      setError('Seuls les superadmins peuvent supprimer des utilisateurs.');
+      return;
+    }
+
+    openModal(`Voulez-vous vraiment supprimer ${userToDelete.name} ?`, async () => {
+      try {
+        const res = await fetch('/api/users', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id }),
+        });
+        if (!res.ok) throw new Error(`Failed to delete user: ${res.status}`);
+        setUserList(userList.filter((u) => u.id !== id));
+        await fetchStats();
+        closeModal();
+      } catch (error) {
+        setError('Erreur lors de la suppression de l’utilisateur');
+        closeModal();
+      }
+    });
   };
 
   const handleBanUser = async (id: string, currentBanned: number | undefined) => {
@@ -136,22 +199,27 @@ export default function AdminPanel({ session }: AdminPanelProps) {
       return;
     }
 
-    const newBanned = currentBanned === 1 ? 0 : 1;
-    try {
-      const res = await fetch('/api/users', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...userToBan, banned: newBanned }),
-      });
-      if (!res.ok) throw new Error(`Failed to update user: ${res.status}`);
-      const updatedUser = await res.json();
-      setUserList(
-        userList.map((u) => (u.id === updatedUser.id ? updatedUser : u))
-      );
-      await fetchStats();
-    } catch (error) {
-      setError('Erreur lors de la mise à jour du statut de bannissement');
-    }
+    const action = currentBanned === 1 ? 'débannir' : 'bannir';
+    openModal(`Voulez-vous vraiment ${action} ${userToBan.name} ?`, async () => {
+      const newBanned = currentBanned === 1 ? 0 : 1;
+      try {
+        const res = await fetch('/api/users', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...userToBan, banned: newBanned }),
+        });
+        if (!res.ok) throw new Error(`Failed to update user: ${res.status}`);
+        const updatedUser = await res.json();
+        setUserList(
+          userList.map((u) => (u.id === updatedUser.id ? updatedUser : u))
+        );
+        await fetchStats();
+        closeModal();
+      } catch (error) {
+        setError('Erreur lors de la mise à jour du statut de bannissement');
+        closeModal();
+      }
+    });
   };
 
   const handleToggleRole = async (id: string, currentRole: string) => {
@@ -168,26 +236,40 @@ export default function AdminPanel({ session }: AdminPanelProps) {
     }
 
     const newRole = currentRole === 'superadmin' ? 'admin' : currentRole === 'admin' ? 'user' : 'admin';
-    try {
-      const res = await fetch('/api/users', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...userToToggle, role: newRole }),
-      });
-      if (!res.ok) throw new Error(`Failed to update user: ${res.status}`);
-      const updatedUser = await res.json();
-      setUserList(
-        userList.map((u) => (u.id === updatedUser.id ? updatedUser : u))
-      );
-      await fetchStats();
-    } catch (error) {
-      setError('Erreur lors de la mise à jour du rôle');
-    }
+    const action = newRole === 'user' ? 'rétrograder' : 'promouvoir';
+    openModal(`Voulez-vous vraiment ${action} ${userToToggle.name} à ${newRole} ?`, async () => {
+      try {
+        const res = await fetch('/api/users', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...userToToggle, role: newRole }),
+        });
+        if (!res.ok) throw new Error(`Failed to update user: ${res.status}`);
+        const updatedUser = await res.json();
+        setUserList(
+          userList.map((u) => (u.id === updatedUser.id ? updatedUser : u))
+        );
+        await fetchStats();
+        closeModal();
+      } catch (error) {
+        setError('Erreur lors de la mise à jour du rôle');
+        closeModal();
+      }
+    });
   };
 
   const handleLogout = async () => {
-    await signOut({ callbackUrl: '/login' });
+    openModal('Voulez-vous vraiment vous déconnecter ?', async () => {
+      await signOut({ callbackUrl: '/login' });
+      closeModal();
+    });
   };
+
+  const filteredUserList = filterStatus === 'all'
+    ? userList
+    : filterStatus === 'not_banned'
+    ? userList.filter((user) => user.banned !== 1)
+    : userList.filter((user) => user.banned === 1);
 
   return (
     <div className="admin-container">
@@ -247,8 +329,12 @@ export default function AdminPanel({ session }: AdminPanelProps) {
             className="admin-select"
           >
             <option value="user">User</option>
-            <option value="admin">Admin</option>
-            <option value="superadmin">Superadmin</option>
+            {session.user.role === 'superadmin' && (
+              <>
+                <option value="admin">Admin</option>
+                <option value="superadmin">Superadmin</option>
+              </>
+            )}
           </select>
           <button type="submit" className="admin-button">Ajouter</button>
         </form>
@@ -256,6 +342,20 @@ export default function AdminPanel({ session }: AdminPanelProps) {
 
       <section className="admin-section">
         <h2 className="admin-section-title">Liste des utilisateurs</h2>
+        <div className="filter-section">
+          <label>
+            Filtrer par statut :
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value as 'all' | 'not_banned' | 'banned')}
+              className="admin-select filter-select"
+            >
+              <option value="all">Tous</option>
+              <option value="not_banned">Non bannis</option>
+              <option value="banned">Bannis</option>
+            </select>
+          </label>
+        </div>
         <table className="admin-table">
           <thead>
             <tr>
@@ -268,12 +368,14 @@ export default function AdminPanel({ session }: AdminPanelProps) {
             </tr>
           </thead>
           <tbody>
-            {userList.map((user) => {
+            {filteredUserList.map((user) => {
               const isSelf = user.id === session.user.id;
               const isAdmin = session.user.role === 'admin';
+              const isSuperAdmin = session.user.role === 'superadmin';
               const isTargetAdminOrAbove = user.role === 'admin' || user.role === 'superadmin';
               const canBan = !isSelf && !(isAdmin && isTargetAdminOrAbove);
               const canToggleRole = !isSelf && !(isAdmin && isTargetAdminOrAbove);
+              const canDelete = !isSelf && isSuperAdmin;
 
               return (
                 <tr key={user.id}>
@@ -291,7 +393,8 @@ export default function AdminPanel({ session }: AdminPanelProps) {
                     </button>
                     <button
                       onClick={() => handleDeleteUser(user.id)}
-                      className="admin-button admin-button-delete"
+                      className={`admin-button admin-button-delete ${!canDelete ? 'disabled' : ''}`}
+                      disabled={!canDelete}
                     >
                       Supprimer
                     </button>
@@ -348,8 +451,12 @@ export default function AdminPanel({ session }: AdminPanelProps) {
               className="admin-select"
             >
               <option value="user">User</option>
-              <option value="admin">Admin</option>
-              <option value="superadmin">Superadmin</option>
+              {session.user.role === 'superadmin' && (
+                <>
+                  <option value="admin">Admin</option>
+                  <option value="superadmin">Superadmin</option>
+                </>
+              )}
             </select>
             <button type="submit" className="admin-button">Mettre à jour</button>
             <button
@@ -362,6 +469,13 @@ export default function AdminPanel({ session }: AdminPanelProps) {
           </form>
         </section>
       )}
+
+      <Modal
+        isOpen={isModalOpen}
+        message={modalMessage}
+        onConfirm={() => modalAction && modalAction()}
+        onCancel={closeModal}
+      />
     </div>
   );
 }
