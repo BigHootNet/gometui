@@ -23,4 +23,18 @@ export interface User {
     roles: { [key: string]: number };
   }
   
+  export interface Album {
+    id: string;
+    user_id: string;
+    title: string;
+    created_at: number;
+  }
+  
+  export interface AlbumFile {
+    id: string;
+    album_id: string;
+    file_path: string;
+    uploaded_at: number;
+  }
+  
   export type { ExtendedSession } from '@/types/next-auth';

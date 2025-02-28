@@ -5,31 +5,21 @@
       "static/chunks/main-app.js",
       "static/chunks/app/layout.js"
     ],
-    "/profile/page": [
+    "/admin/albums/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/css/app/profile/page.css",
-      "static/chunks/app/profile/page.js"
+      "static/css/app/admin/albums/page.css",
+      "static/chunks/app/admin/albums/page.js"
     ],
-    "/api/users/route": [
+    "/api/albums/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/users/route.js"
+      "static/chunks/app/api/albums/route.js"
     ],
     "/api/uploads/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/uploads/route.js"
-    ],
-    "/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/page.js"
-    ],
-    "/api/hello/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/hello/route.js"
     ]
   }
 }

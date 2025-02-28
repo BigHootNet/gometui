@@ -13,7 +13,7 @@ db.exec(`
     password TEXT NOT NULL,
     role TEXT NOT NULL,
     banned INTEGER DEFAULT 0,
-    avatar TEXT DEFAULT NULL -- Nouveau champ pour l'avatar
+    avatar TEXT DEFAULT NULL
   )
 `);
 
@@ -31,19 +31,29 @@ db.exec(`
   )
 `);
 
-// Table albums (pour les portfolios admin)
+// Table albums (métadonnées de l’album)
 db.exec(`
   CREATE TABLE IF NOT EXISTS albums (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
     title TEXT NOT NULL,
-    file_path TEXT NOT NULL,
     created_at INTEGER NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id)
   )
 `);
 
-// Migration pour ajouter la colonne avatar si elle n'existe pas
+// Table album_files (fichiers associés à un album)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS album_files (
+    id TEXT PRIMARY KEY,
+    album_id TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    uploaded_at INTEGER NOT NULL,
+    FOREIGN KEY (album_id) REFERENCES albums(id)
+  )
+`);
+
+// Migration pour ajouter la colonne avatar si elle n’existe pas
 try {
   db.exec(`ALTER TABLE users ADD COLUMN avatar TEXT DEFAULT NULL`);
 } catch (error: unknown) {
@@ -52,6 +62,22 @@ try {
   } else {
     console.error('Error adding avatar column to users:', error);
   }
+}
+
+// Supprimer l’ancienne table albums si elle existe avec une structure différente
+try {
+  db.exec(`DROP TABLE IF EXISTS albums`);
+  db.exec(`
+    CREATE TABLE albums (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `);
+} catch (error) {
+  console.error('Error dropping/recreating albums table:', error);
 }
 
 // Insérer l'utilisateur initial

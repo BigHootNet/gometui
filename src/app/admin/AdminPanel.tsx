@@ -11,6 +11,7 @@ import ActionLogs from './components/ActionLogs';
 import Modal from './components/Modal';
 import StatsSection from './components/StatsSection';
 import { User, Stats } from './types';
+import Link from 'next/link';
 import '../../styles/admin.css';
 
 interface AdminPanelProps {
@@ -77,6 +78,10 @@ export default function AdminPanel({ session }: AdminPanelProps) {
       <StatsSection stats={stats} />
       <AddUserForm session={session} onAddUser={handleAddUser} setError={setError} />
       <UserList session={session} />
+      <section className="admin-section">
+        <h2 className="admin-section-title">Gestion des albums</h2>
+        <Link href="/admin/albums" className="admin-button">Aller à la gestion des albums</Link>
+      </section>
       <ActionLogs refreshLogs={() => setRefreshLogsKey((prev: number) => prev + 1)} />
       {editingUser && (
         <EditUserForm
