@@ -1,7 +1,6 @@
-"use client";
-
-import { ReactNode } from 'react';
-import '../../../styles/admin.css'; // Remonter de src/app/admin/components/ à src/styles/
+// src/app/admin/components/Modal.tsx
+import React from 'react';
+import '../../../styles/admin.css';
 
 interface ModalProps {
   isOpen: boolean;
@@ -18,8 +17,18 @@ export default function Modal({ isOpen, message, onConfirm, onCancel }: ModalPro
       <div className="modal-content">
         <p>{message}</p>
         <div className="modal-buttons">
-          <button onClick={onConfirm} className="admin-button admin-button-confirm">Oui</button>
-          <button onClick={onCancel} className="admin-button admin-button-cancel">Non</button>
+          <button onClick={() => {
+            console.log('Confirm button clicked');
+            onConfirm();
+          }} className="admin-button">
+            Confirmer
+          </button>
+          <button onClick={() => {
+            console.log('Cancel button clicked');
+            onCancel();
+          }} className="admin-button admin-button-cancel">
+            Annuler
+          </button>
         </div>
       </div>
     </div>

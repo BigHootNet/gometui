@@ -40,7 +40,7 @@ export const authOptions: NextAuthOptions = {
 
         console.log('User found:', { email, banned: user.banned, storedHash: user.password });
         console.log('Provided password:', password);
-        const isValid = bcrypt.compareSync(password, user.password);
+        const isValid = await bcrypt.compare(password, user.password); // Utiliser compare async
         console.log('Password valid:', isValid);
 
         if (!isValid) {
@@ -70,8 +70,10 @@ export const authOptions: NextAuthOptions = {
     strategy: 'jwt' as const,
   },
   callbacks: {
-    async redirect({ url, baseUrl }: { url: string; baseUrl: string }) {
-      return baseUrl;
+    async redirect({ url, baseUrl }) {
+      console.log('Redirect callback called with:', { url, baseUrl });
+      if (url.startsWith('/')) return `${baseUrl}${url}`;
+      return url;
     },
     async session({ session, token }: { session: Session; token: JWT }) {
       session.user = {
