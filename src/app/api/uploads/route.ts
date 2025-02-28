@@ -18,8 +18,6 @@ export async function POST(req: NextRequest) {
     const files = formData.getAll('files') as File[];
     const userId = formData.get('userId') as string;
     const type = formData.get('type') as string;
-    const title = formData.get('title') as string;
-    const albumId = formData.get('albumId') as string | null;
 
     if (!files || files.length === 0 || !userId || !type) {
       return NextResponse.json({ error: 'Missing files, userId, or type' }, { status: 400 });
@@ -28,7 +26,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Forbidden: User ID mismatch' }, { status: 403 });
     }
 
-    // Validation des fichiers
     const allowedTypes = ['image/jpeg', 'image/png', 'video/mp4', 'video/webm'];
     const maxSize = 10 * 1024 * 1024; // 10 Mo
     for (const file of files) {
@@ -43,7 +40,7 @@ export async function POST(req: NextRequest) {
     const uploadDir = path.join(process.cwd(), 'public/uploads');
     await fs.mkdir(uploadDir, { recursive: true });
 
-    if (type === 'avatar' && (session.user.role === 'admin' || session.user.role === 'superadmin' || session.user.id === userId)) {
+    if (type === 'avatar') {
       const file = files[0];
       const fileExtension = path.extname(file.name);
       const fileName = `${uuidv4()}${fileExtension}`;
@@ -54,8 +51,9 @@ export async function POST(req: NextRequest) {
       db.prepare('UPDATE users SET avatar = ? WHERE id = ?').run(relativePath, userId);
       return NextResponse.json({ message: 'Avatar uploaded', path: relativePath }, { status: 201 });
     } else if (type === 'album' && (session.user.role === 'admin' || session.user.role === 'superadmin')) {
-      let targetAlbumId = albumId;
+      let targetAlbumId = formData.get('albumId') as string | null;
       if (!targetAlbumId) {
+        const title = formData.get('title') as string;
         if (!title) {
           return NextResponse.json({ error: 'Missing album title for new album' }, { status: 400 });
         }
@@ -82,6 +80,18 @@ export async function POST(req: NextRequest) {
       }
 
       return NextResponse.json({ message: 'Files added to album', id: targetAlbumId, filePaths }, { status: 201 });
+    } else if (type === 'carousel' && (session.user.role === 'admin' || session.user.role === 'superadmin')) {
+      const filePaths = [];
+      for (const file of files) {
+        const fileExtension = path.extname(file.name);
+        const fileName = `${uuidv4()}${fileExtension}`;
+        const filePath = path.join(uploadDir, fileName);
+        const buffer = Buffer.from(await file.arrayBuffer());
+        await fs.writeFile(filePath, buffer);
+        const relativePath = `/uploads/${fileName}`;
+        filePaths.push(relativePath);
+      }
+      return NextResponse.json({ message: 'Files uploaded for carousel', filePaths }, { status: 201 });
     }
 
     return NextResponse.json({ error: 'Invalid type or insufficient permissions' }, { status: 400 });

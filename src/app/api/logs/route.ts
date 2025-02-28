@@ -1,8 +1,15 @@
 // src/app/api/logs/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../../../../pages/api/auth/[...nextauth]';
 
 export async function GET(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user || (session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
+    return NextResponse.json({ error: 'Unauthorized or insufficient permissions' }, { status: 401 });
+  }
+
   const { searchParams } = new URL(req.url);
   const limit = parseInt(searchParams.get('limit') || '10', 10);
   const offset = parseInt(searchParams.get('offset') || '0', 10);
@@ -20,6 +27,11 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user || (session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
+    return NextResponse.json({ error: 'Unauthorized or insufficient permissions' }, { status: 401 });
+  }
+
   try {
     const { user_id, action, target_id, target_name, timestamp, details } = await req.json();
     db.prepare(

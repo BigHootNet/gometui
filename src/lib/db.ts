@@ -2,7 +2,7 @@
 import Database from 'better-sqlite3';
 import bcrypt from 'bcryptjs';
 
-const db = new Database('database/users.db');
+const db = new Database('database/users.db', { verbose: console.log }); // Activer les logs pour déboguer
 
 // Table users
 db.exec(`
@@ -31,7 +31,7 @@ db.exec(`
   )
 `);
 
-// Table albums (métadonnées de l’album)
+// Table albums
 db.exec(`
   CREATE TABLE IF NOT EXISTS albums (
     id TEXT PRIMARY KEY,
@@ -42,7 +42,7 @@ db.exec(`
   )
 `);
 
-// Table album_files (fichiers associés à un album)
+// Table album_files
 db.exec(`
   CREATE TABLE IF NOT EXISTS album_files (
     id TEXT PRIMARY KEY,
@@ -53,6 +53,25 @@ db.exec(`
   )
 `);
 
+// Table carousels
+try {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS carousels (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT,
+      items TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      user_id TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `);
+} catch (error) {
+  console.error('Error creating carousels table:', error);
+  throw error; // Provoque un arrêt avec le message d’erreur exact
+}
+
 // Migration pour ajouter la colonne avatar si elle n’existe pas
 try {
   db.exec(`ALTER TABLE users ADD COLUMN avatar TEXT DEFAULT NULL`);
@@ -62,22 +81,6 @@ try {
   } else {
     console.error('Error adding avatar column to users:', error);
   }
-}
-
-// Supprimer l’ancienne table albums si elle existe avec une structure différente
-try {
-  db.exec(`DROP TABLE IF EXISTS albums`);
-  db.exec(`
-    CREATE TABLE albums (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      title TEXT NOT NULL,
-      created_at INTEGER NOT NULL,
-      FOREIGN KEY (user_id) REFERENCES users(id)
-    )
-  `);
-} catch (error) {
-  console.error('Error dropping/recreating albums table:', error);
 }
 
 // Insérer l'utilisateur initial

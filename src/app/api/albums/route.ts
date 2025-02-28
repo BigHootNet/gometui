@@ -4,8 +4,15 @@ import db from '@/lib/db';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { Album, AlbumFile } from '@/app/admin/types';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../../../../pages/api/auth/[...nextauth]';
 
 export async function GET(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user || (session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
+    return NextResponse.json({ error: 'Unauthorized or insufficient permissions' }, { status: 401 });
+  }
+
   try {
     const albums = db
       .prepare('SELECT id, user_id, title, created_at FROM albums ORDER BY created_at DESC')
@@ -26,6 +33,11 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user || (session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
+    return NextResponse.json({ error: 'Unauthorized or insufficient permissions' }, { status: 401 });
+  }
+
   try {
     const { id, title } = await req.json();
     if (!id || !title) {
@@ -43,13 +55,17 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user || (session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
+    return NextResponse.json({ error: 'Unauthorized or insufficient permissions' }, { status: 401 });
+  }
+
   try {
     const { id } = await req.json();
     if (!id) {
       return NextResponse.json({ error: 'Missing album id' }, { status: 400 });
     }
 
-    // Supprimer les fichiers associés
     const files = db.prepare('SELECT file_path FROM album_files WHERE album_id = ?').all(id) as AlbumFile[];
     for (const file of files) {
       const filePath = path.join(process.cwd(), 'public', file.file_path);
@@ -60,10 +76,7 @@ export async function DELETE(req: NextRequest) {
       }
     }
 
-    // Supprimer les entrées dans album_files
     db.prepare('DELETE FROM album_files WHERE album_id = ?').run(id);
-
-    // Supprimer l’album
     const result = db.prepare('DELETE FROM albums WHERE id = ?').run(id);
     if (result.changes === 0) {
       return NextResponse.json({ error: 'Album not found' }, { status: 404 });

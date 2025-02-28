@@ -25,6 +25,7 @@ export default function AdminPanel({ session }: AdminPanelProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
   const [refreshLogsKey, setRefreshLogsKey] = useState(0);
+  const [refreshUsersKey, setRefreshUsersKey] = useState(0);
 
   useEffect(() => {
     loadStats();
@@ -56,12 +57,14 @@ export default function AdminPanel({ session }: AdminPanelProps) {
   const handleAddUser = async (user: { id: string; name: string; email: string; password: string; role: 'superadmin' | 'admin' | 'user'; banned: number }) => {
     console.log('User added:', user);
     setRefreshLogsKey((prev: number) => prev + 1);
+    setRefreshUsersKey((prev: number) => prev + 1);
   };
 
   const handleUpdateUser = (updatedUser: User) => {
     console.log('User updated:', updatedUser);
     setEditingUser(null);
     setRefreshLogsKey((prev: number) => prev + 1);
+    setRefreshUsersKey((prev: number) => prev + 1);
   };
 
   return (
@@ -73,15 +76,18 @@ export default function AdminPanel({ session }: AdminPanelProps) {
         </button>
       </div>
       <p className="admin-welcome">Bienvenue, {session.user.name} ! Vous êtes {session.user.role}.</p>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {error && <p className="error-message">{error}</p>}
 
       <StatsSection stats={stats} />
       <AddUserForm session={session} onAddUser={handleAddUser} setError={setError} />
-      <UserList session={session} />
+      <UserList session={session} refreshTrigger={refreshUsersKey} />
+
       <section className="admin-section">
-        <h2 className="admin-section-title">Gestion des albums</h2>
-        <Link href="/admin/albums" className="admin-button">Aller à la gestion des albums</Link>
+        <h2 className="admin-section-title">Outils Admin</h2>
+        <Link href="/admin/albums" className="admin-button">Gestion des albums</Link>
+        <Link href="/admin/carousel" className="admin-button">Gestion des carousels</Link>
       </section>
+
       <ActionLogs refreshLogs={() => setRefreshLogsKey((prev: number) => prev + 1)} />
       {editingUser && (
         <EditUserForm

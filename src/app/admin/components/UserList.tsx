@@ -8,9 +8,10 @@ import '../../../styles/admin.css';
 
 interface UserListProps {
   session: ExtendedSession;
+  refreshTrigger: number; // Ajouté pour rafraîchir
 }
 
-export default function UserList({ session }: UserListProps) {
+export default function UserList({ session, refreshTrigger }: UserListProps) {
   const [users, setUsers] = useState<User[]>([]);
   const [totalUsers, setTotalUsers] = useState(0);
   const [filterStatus, setFilterStatus] = useState<'all' | 'not_banned' | 'banned'>('not_banned');
@@ -35,7 +36,7 @@ export default function UserList({ session }: UserListProps) {
 
   useEffect(() => {
     loadUsers();
-  }, [currentPage]);
+  }, [currentPage, refreshTrigger]); // Ajouté refreshTrigger comme dépendance
 
   const filteredUserList = filterStatus === 'all'
     ? users
@@ -53,7 +54,7 @@ export default function UserList({ session }: UserListProps) {
 
   const handleEditUser = (user: User) => {
     console.log('Modifier clicked for:', user.id);
-    setEditingUser(user); // Ouvre le formulaire d'édition
+    setEditingUser(user);
   };
 
   const handleDeleteUser = async (id: string) => {
@@ -111,8 +112,8 @@ export default function UserList({ session }: UserListProps) {
 
   const handleUpdateUser = (updatedUser: User) => {
     console.log('User updated:', updatedUser);
-    setEditingUser(null); // Ferme le formulaire après mise à jour
-    loadUsers(); // Rafraîchit la liste
+    setEditingUser(null);
+    loadUsers(); // Rafraîchit après mise à jour via EditUserForm
   };
 
   return (
@@ -133,7 +134,7 @@ export default function UserList({ session }: UserListProps) {
             </select>
           </label>
         </div>
-        {error && <p style={{ color: 'red' }}>{error}</p>}
+        {error && <p className="error-message">{error}</p>}
         <table className="admin-table">
           <thead>
             <tr>

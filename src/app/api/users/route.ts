@@ -1,8 +1,10 @@
 // src/app/api/users/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
-import bcrypt from 'bcryptjs'; // Changé de bcrypt à bcryptjs
+import bcrypt from 'bcryptjs';
 import db from '@/lib/db';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../../../../pages/api/auth/[...nextauth]';
 
 interface User {
   id: string;
@@ -33,6 +35,11 @@ const countUsersByRole = db.prepare('SELECT role, COUNT(*) as count FROM users W
 const countTotalUsers = db.prepare('SELECT COUNT(*) as total FROM users WHERE banned = 0');
 
 export async function GET(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const { searchParams } = new URL(req.url);
   const type = searchParams.get('type');
   const id = searchParams.get('id');
@@ -41,6 +48,9 @@ export async function GET(req: NextRequest) {
 
   try {
     if (type === 'stats') {
+      if (session.user.role !== 'admin' && session.user.role !== 'superadmin') {
+        return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
+      }
       const totalResult = countTotalUsers.get() as TotalCount;
       const total = totalResult.total;
       const byRole = countUsersByRole.all() as RoleCount[];
@@ -57,9 +67,15 @@ export async function GET(req: NextRequest) {
         console.error('GET /api/users: User not found:', id);
         return NextResponse.json({ error: 'User not found' }, { status: 404 });
       }
+      if (session.user.id !== id && session.user.role !== 'admin' && session.user.role !== 'superadmin') {
+        return NextResponse.json({ error: 'Forbidden: Access to own data or admin required' }, { status: 403 });
+      }
       return NextResponse.json({ users: [user], total: 1 });
     }
 
+    if (session.user.role !== 'admin' && session.user.role !== 'superadmin') {
+      return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
+    }
     const users = selectAllUsers.all(limit, offset) as User[];
     const total = (countTotalUsers.get() as TotalCount).total;
     return NextResponse.json({ users, total });
@@ -70,10 +86,15 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user || (session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
+    return NextResponse.json({ error: 'Unauthorized or insufficient permissions' }, { status: 401 });
+  }
+
   try {
     const { name, email, password, role } = await req.json();
     if (!password) throw new Error('Password is required');
-    const hashedPassword = bcrypt.hashSync(password, saltRounds); // Changé à hashSync
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
     const id = uuidv4();
     insertUser.run(id, name, email, hashedPassword, role, 0);
     console.log('User added:', { id, name, email, role, hashedPassword });
@@ -85,6 +106,11 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const body = await req.json();
     const { id, name, email, password, role, banned } = body as {
@@ -103,9 +129,17 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    if (session.user.id !== id && session.user.role !== 'admin' && session.user.role !== 'superadmin') {
+      return NextResponse.json({ error: 'Forbidden: Access to own data or admin required' }, { status: 403 });
+    }
+
+    if ((role || banned !== undefined) && session.user.role !== 'superadmin') {
+      return NextResponse.json({ error: 'Forbidden: Superadmin required to modify role or ban status' }, { status: 403 });
+    }
+
     const updatedName = name !== undefined ? name : user.name;
     const updatedEmail = email !== undefined ? email : user.email;
-    const updatedPassword = password && password.trim() !== '' ? bcrypt.hashSync(password, saltRounds) : user.password; // Changé à hashSync
+    const updatedPassword = password && password.trim() !== '' ? await bcrypt.hash(password, saltRounds) : user.password;
     const updatedRole = role !== undefined ? role : user.role;
     const updatedBanned = banned !== undefined ? banned : user.banned;
 
@@ -128,6 +162,11 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user || session.user.role !== 'superadmin') {
+    return NextResponse.json({ error: 'Unauthorized or insufficient permissions' }, { status: 401 });
+  }
+
   try {
     const { id } = await req.json();
     deleteUser.run(id);

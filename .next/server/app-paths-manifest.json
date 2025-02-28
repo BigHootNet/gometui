@@ -1,6 +1,7 @@
 {
-  "/favicon.ico/route": "app/favicon.ico/route.js",
-  "/api/albums/route": "app/api/albums/route.js",
-  "/api/uploads/route": "app/api/uploads/route.js",
-  "/admin/albums/page": "app/admin/albums/page.js"
+  "/api/carousels/route": "app/api/carousels/route.js",
+  "/api/logs/route": "app/api/logs/route.js",
+  "/api/users/route": "app/api/users/route.js",
+  "/admin/carousel/page": "app/admin/carousel/page.js",
+  "/admin/page": "app/admin/page.js"
 }
