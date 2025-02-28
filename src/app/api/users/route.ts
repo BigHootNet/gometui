@@ -56,25 +56,32 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const { name, email, password, role } = await req.json();
+    if (!password) throw new Error('Password is required');
     const hashedPassword = await bcrypt.hash(password, saltRounds);
     const id = uuidv4();
     insertUser.run(id, name, email, hashedPassword, role, 0);
+    console.log('User added:', { id, name, email, role, hashedPassword });
     return NextResponse.json({ id, name, email, password: hashedPassword, role, banned: 0 }, { status: 201 });
   } catch (error) {
+    console.error('Error in POST /api/users:', error);
     return NextResponse.json({ error: 'Failed to add user', details: String(error) }, { status: 500 });
   }
 }
 
 export async function PUT(req: NextRequest) {
   try {
-    const { id, name, email, password, role, banned } = await req.json();
-    const users = selectAllUsers.all() as User[]; // Typage explicite
+    const body = await req.json();
+    const { id, name, email, password, role, banned } = body;
+    const users = selectAllUsers.all() as User[];
     const userToUpdate = users.find((u) => u.id === id);
     if (!userToUpdate) throw new Error('User not found');
-    const hashedPassword = password ? await bcrypt.hash(password, saltRounds) : userToUpdate.password;
+    // Ne rehacher que si password est explicitement fourni et non vide
+    const hashedPassword = password && password.trim() !== '' ? await bcrypt.hash(password, saltRounds) : userToUpdate.password;
     updateUser.run(name, email, hashedPassword, role, banned !== undefined ? banned : 0, id);
+    console.log('User updated:', { id, name, email, role, banned, hashedPassword, providedPassword: password });
     return NextResponse.json({ id, name, email, password: hashedPassword, role, banned });
   } catch (error) {
+    console.error('Error in PUT /api/users:', error);
     return NextResponse.json({ error: 'Failed to update user', details: String(error) }, { status: 500 });
   }
 }

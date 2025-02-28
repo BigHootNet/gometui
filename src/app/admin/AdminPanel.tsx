@@ -15,6 +15,16 @@ interface User {
   banned?: number;
 }
 
+interface Log {
+  id: number;
+  user_id: string;
+  user_name: string;
+  action: string;
+  target_id?: string;
+  target_name?: string;
+  timestamp: number;
+}
+
 interface Stats {
   total: number;
   roles: { [key: string]: number };
@@ -61,11 +71,13 @@ export default function AdminPanel({ session }: AdminPanelProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
   const [modalAction, setModalAction] = useState<(() => void) | null>(null);
-  const [filterStatus, setFilterStatus] = useState<'all' | 'not_banned' | 'banned'>('not_banned'); // État du filtre
+  const [filterStatus, setFilterStatus] = useState<'all' | 'not_banned' | 'banned'>('not_banned');
+  const [logs, setLogs] = useState<Log[]>([]);
 
   useEffect(() => {
     fetchUsers();
     fetchStats();
+    fetchLogs();
   }, []);
 
   const fetchUsers = async () => {
@@ -87,6 +99,17 @@ export default function AdminPanel({ session }: AdminPanelProps) {
       setStats(data);
     } catch (error) {
       setError('Erreur lors du chargement des statistiques');
+    }
+  };
+
+  const fetchLogs = async () => {
+    try {
+      const res = await fetch('/api/logs');
+      if (!res.ok) throw new Error(`Failed to fetch logs: ${res.status}`);
+      const data = await res.json();
+      setLogs(data);
+    } catch (error) {
+      setError('Erreur lors du chargement des logs');
     }
   };
 
@@ -114,7 +137,8 @@ export default function AdminPanel({ session }: AdminPanelProps) {
   };
 
   const handleEditUser = (user: User) => {
-    setEditingUser(user);
+    // Ne pas inclure le mot de passe haché existant dans editingUser
+    setEditingUser({ ...user, password: '' });
   };
 
   const handleUpdateUser = async (e: FormEvent) => {
@@ -125,10 +149,28 @@ export default function AdminPanel({ session }: AdminPanelProps) {
         return;
       }
       try {
+        const updatedUserData: {
+          id: string;
+          name: string;
+          email: string;
+          role: 'superadmin' | 'admin' | 'user';
+          banned?: number;
+          password?: string;
+        } = {
+          id: editingUser.id,
+          name: editingUser.name,
+          email: editingUser.email,
+          role: editingUser.role,
+          banned: editingUser.banned,
+        };
+        // Ajouter password uniquement si une nouvelle valeur est saisie
+        if (editingUser.password.trim() !== '') {
+          updatedUserData.password = editingUser.password;
+        }
         const res = await fetch('/api/users', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(editingUser),
+          body: JSON.stringify(updatedUserData),
         });
         if (!res.ok) throw new Error(`Failed to update user: ${res.status}`);
         const updatedUser = await res.json();
@@ -155,6 +197,27 @@ export default function AdminPanel({ session }: AdminPanelProps) {
     setModalAction(null);
   };
 
+  const logAction = async (action: string, targetId?: string, targetName?: string) => {
+    try {
+      const timestamp = Math.floor(Date.now() / 1000);
+      const res = await fetch('/api/logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: session.user.id,
+          action,
+          target_id: targetId,
+          target_name: targetName,
+          timestamp,
+        }),
+      });
+      if (!res.ok) throw new Error(`Failed to log action: ${res.status}`);
+      await fetchLogs();
+    } catch (error) {
+      console.error('Erreur lors de l’enregistrement du log:', error);
+    }
+  };
+
   const handleDeleteUser = async (id: string) => {
     const userToDelete = userList.find((u) => u.id === id);
     if (!userToDelete) return;
@@ -177,6 +240,7 @@ export default function AdminPanel({ session }: AdminPanelProps) {
         });
         if (!res.ok) throw new Error(`Failed to delete user: ${res.status}`);
         setUserList(userList.filter((u) => u.id !== id));
+        await logAction('delete_user', id, userToDelete.name);
         await fetchStats();
         closeModal();
       } catch (error) {
@@ -206,13 +270,14 @@ export default function AdminPanel({ session }: AdminPanelProps) {
         const res = await fetch('/api/users', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...userToBan, banned: newBanned }),
+          body: JSON.stringify({ ...userToBan, banned: newBanned, password: undefined }), // Exclure password explicitement
         });
         if (!res.ok) throw new Error(`Failed to update user: ${res.status}`);
         const updatedUser = await res.json();
         setUserList(
           userList.map((u) => (u.id === updatedUser.id ? updatedUser : u))
         );
+        await logAction(newBanned === 1 ? 'ban_user' : 'unban_user', id, userToBan.name);
         await fetchStats();
         closeModal();
       } catch (error) {
@@ -242,13 +307,14 @@ export default function AdminPanel({ session }: AdminPanelProps) {
         const res = await fetch('/api/users', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...userToToggle, role: newRole }),
+          body: JSON.stringify({ ...userToToggle, role: newRole, password: undefined }), // Exclure password explicitement
         });
         if (!res.ok) throw new Error(`Failed to update user: ${res.status}`);
         const updatedUser = await res.json();
         setUserList(
           userList.map((u) => (u.id === updatedUser.id ? updatedUser : u))
         );
+        await logAction(`change_role_to_${newRole}`, id, userToToggle.name);
         await fetchStats();
         closeModal();
       } catch (error) {
@@ -416,6 +482,32 @@ export default function AdminPanel({ session }: AdminPanelProps) {
                 </tr>
               );
             })}
+          </tbody>
+        </table>
+      </section>
+
+      <section className="admin-section">
+        <h2 className="admin-section-title">Historique des actions</h2>
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Auteur</th>
+              <th>Action</th>
+              <th>Cible</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {logs.map((log) => (
+              <tr key={log.id}>
+                <td>{log.id}</td>
+                <td>{log.user_name} ({log.user_id})</td>
+                <td>{log.action}</td>
+                <td>{log.target_name ? `${log.target_name} (${log.target_id})` : '-'}</td>
+                <td>{new Date(log.timestamp * 1000).toLocaleString()}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </section>

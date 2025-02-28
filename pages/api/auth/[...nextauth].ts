@@ -19,7 +19,10 @@ export const authOptions: NextAuthOptions = {
         const email = credentials?.email as string | undefined;
         const password = credentials?.password as string | undefined;
 
-        if (!email || !password) return null;
+        if (!email || !password) {
+          console.error('Missing email or password');
+          return null;
+        }
 
         const user = findUserByEmail.get(email) as {
           id: string;
@@ -30,7 +33,22 @@ export const authOptions: NextAuthOptions = {
           banned: number;
         } | undefined;
 
-        if (!user || !bcrypt.compareSync(password, user.password) || user.banned === 1) {
+        if (!user) {
+          console.error('User not found:', email);
+          return null;
+        }
+
+        console.log('User found:', { email, banned: user.banned, storedHash: user.password });
+        console.log('Provided password:', password);
+        const isValid = bcrypt.compareSync(password, user.password);
+        console.log('Password valid:', isValid);
+
+        if (!isValid) {
+          console.error('Invalid password for:', email);
+          return null;
+        }
+        if (user.banned === 1) {
+          console.error('User banned:', email);
           return null;
         }
 
@@ -47,7 +65,7 @@ export const authOptions: NextAuthOptions = {
     signIn: '/login',
   },
   secret: process.env.NEXTAUTH_SECRET || 'temporary-secret-for-testing',
-  debug: false,
+  debug: true,
   session: {
     strategy: 'jwt' as const,
   },
