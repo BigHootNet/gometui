@@ -173,7 +173,7 @@ export const useUserManagement = (session: ExtendedSession) => {
           id: user.id,
           name: user.name,
           email: user.email,
-          password: user.password || undefined, // Ne pas envoyer le hash existant
+          password: user.password || undefined, // Envoyer le mot de passe brut si fourni
           role: currentUser.role,
           banned: currentUser.banned,
         };

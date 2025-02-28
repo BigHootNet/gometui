@@ -15,6 +15,7 @@ export default function ProfilePage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const { error, setError, modal, openModal, closeModal, handleUpdateProfile } = useUserManagement(
     extendedSession || { user: { id: '', name: '', email: '', role: 'user' } } as ExtendedSession
@@ -42,9 +43,28 @@ export default function ProfilePage() {
     }
   }, [extendedSession]);
 
+  const validateFields = () => {
+    if (!name.trim()) {
+      setError('Le nom ne peut pas être vide.');
+      return false;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Veuillez entrer un email valide.');
+      return false;
+    }
+    if (password && password.length < 6) {
+      setError('Le mot de passe doit avoir au moins 6 caractères.');
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!extendedSession?.user) return;
+
+    if (!validateFields()) return;
 
     const initialName = name;
     console.log('Initial name before update:', initialName);
@@ -67,15 +87,18 @@ export default function ProfilePage() {
       console.log('User data re-fetched from base:', updatedUser);
       setName(updatedUser.name);
       setEmail(updatedUser.email);
+      setPassword(''); // Réinitialiser le champ mot de passe après mise à jour
 
-      // Mettre à jour la session NextAuth
       await update({ name: updatedUser.name, email: updatedUser.email });
       console.log('Session synced with:', { name: updatedUser.name, email: updatedUser.email });
 
-      // Forcer un re-fetch global (optionnel, si tu utilises un état global)
-      window.dispatchEvent(new Event('profileUpdated')); // Événement personnalisé pour /admin
+      setNotification({ message: 'Profil mis à jour avec succès !', type: 'success' });
+      setTimeout(() => setNotification(null), 3000); // Disparaît après 3 secondes
+
+      window.dispatchEvent(new Event('profileUpdated')); // Notifier /admin
     } else {
       console.error('Failed to re-fetch user data:', response.status);
+      setNotification({ message: 'Échec de la mise à jour du profil.', type: 'error' });
     }
   };
 
@@ -87,6 +110,11 @@ export default function ProfilePage() {
       <h1>Profil Utilisateur</h1>
       <p>Rôle : {extendedSession.user.role}</p>
       <p>Statut : {extendedSession.user.banned === 1 ? 'Banni' : 'Actif'}</p>
+      {notification && (
+        <div className={`notification ${notification.type}`}>
+          {notification.message}
+        </div>
+      )}
       <form onSubmit={handleSubmit}>
         <label>
           Nom :

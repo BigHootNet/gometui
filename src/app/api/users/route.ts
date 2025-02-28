@@ -102,7 +102,6 @@ export async function PUT(req: NextRequest) {
       console.error('PUT /api/users: User not found:', id);
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
-    console.log('Current user before update:', user);
 
     const updatedName = name !== undefined ? name : user.name;
     const updatedEmail = email !== undefined ? email : user.email;
@@ -110,17 +109,17 @@ export async function PUT(req: NextRequest) {
     const updatedRole = role !== undefined ? role : user.role;
     const updatedBanned = banned !== undefined ? banned : user.banned;
 
-    console.log('Updating user with:', { updatedName, updatedEmail, updatedPassword, updatedRole, updatedBanned, id });
+    console.log('Executing update with:', { updatedName, updatedEmail, updatedPassword, updatedRole, updatedBanned, id });
     const result = updateUser.run(updatedName, updatedEmail, updatedPassword, updatedRole, updatedBanned, id);
     console.log('Update result:', result);
 
     if (result.changes === 0) {
       console.error('PUT /api/users: No rows updated for id:', id);
-      return NextResponse.json({ error: 'No changes applied, possibly no matching id' }, { status: 400 });
+      return NextResponse.json({ error: 'No changes applied' }, { status: 400 });
     }
 
     const updatedUser = selectUserById.get(id) as User;
-    console.log('User after update:', updatedUser);
+    console.log('User updated:', updatedUser);
     return NextResponse.json(updatedUser);
   } catch (error) {
     console.error('Error in PUT /api/users:', error);
