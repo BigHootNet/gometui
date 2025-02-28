@@ -27,7 +27,7 @@ export default async function AdminPage() {
     if (process.env.NODE_ENV === 'development') {
       console.error('Error fetching session in AdminPage:', error);
     }
-    redirect('/login'); // Rediriger vers /login en cas d’erreur
+    redirect('/login');
   }
 
   if (!session || !session.user) {
@@ -35,7 +35,7 @@ export default async function AdminPage() {
   }
 
   const userRole = session.user.role || 'user';
-  if (userRole !== 'admin') {
+  if (userRole !== 'admin' && userRole !== 'superadmin') { // Autoriser admin et superadmin
     redirect('/');
   }
 

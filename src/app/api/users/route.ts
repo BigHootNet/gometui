@@ -1,13 +1,15 @@
 // src/app/api/users/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import Database from 'better-sqlite3';
 import { v4 as uuidv4 } from 'uuid';
+import bcrypt from 'bcrypt';
+import db from '@/lib/db';
 
 interface User {
   id: string;
   name: string;
   email: string;
-  role: string;
+  password: string;
+  role: 'superadmin' | 'admin' | 'user';
   banned?: number;
 }
 
@@ -20,22 +22,11 @@ interface TotalCount {
   total: number;
 }
 
-const db = new Database('database/users.db');
+const saltRounds = 10;
 
-// Créer la table uniquement si elle n'existe pas (sans DROP)
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    email TEXT NOT NULL UNIQUE,
-    role TEXT NOT NULL,
-    banned INTEGER DEFAULT 0
-  )
-`);
-
-const insertUser = db.prepare('INSERT INTO users (id, name, email, role, banned) VALUES (?, ?, ?, ?, ?)');
+const insertUser = db.prepare('INSERT INTO users (id, name, email, password, role, banned) VALUES (?, ?, ?, ?, ?, ?)');
 const selectAllUsers = db.prepare('SELECT * FROM users');
-const updateUser = db.prepare('UPDATE users SET name = ?, email = ?, role = ?, banned = ? WHERE id = ?');
+const updateUser = db.prepare('UPDATE users SET name = ?, email = ?, password = ?, role = ?, banned = ? WHERE id = ?');
 const deleteUser = db.prepare('DELETE FROM users WHERE id = ?');
 const countUsersByRole = db.prepare('SELECT role, COUNT(*) as count FROM users WHERE banned = 0 GROUP BY role');
 const countTotalUsers = db.prepare('SELECT COUNT(*) as total FROM users WHERE banned = 0');
@@ -64,10 +55,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, email, role } = await req.json();
+    const { name, email, password, role } = await req.json();
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
     const id = uuidv4();
-    insertUser.run(id, name, email, role, 0);
-    return NextResponse.json({ id, name, email, role, banned: 0 }, { status: 201 });
+    insertUser.run(id, name, email, hashedPassword, role, 0);
+    return NextResponse.json({ id, name, email, password: hashedPassword, role, banned: 0 }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to add user', details: String(error) }, { status: 500 });
   }
@@ -75,9 +67,13 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
-    const { id, name, email, role, banned } = await req.json();
-    updateUser.run(name, email, role, banned !== undefined ? banned : 0, id);
-    return NextResponse.json({ id, name, email, role, banned });
+    const { id, name, email, password, role, banned } = await req.json();
+    const users = selectAllUsers.all() as User[]; // Typage explicite
+    const userToUpdate = users.find((u) => u.id === id);
+    if (!userToUpdate) throw new Error('User not found');
+    const hashedPassword = password ? await bcrypt.hash(password, saltRounds) : userToUpdate.password;
+    updateUser.run(name, email, hashedPassword, role, banned !== undefined ? banned : 0, id);
+    return NextResponse.json({ id, name, email, password: hashedPassword, role, banned });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to update user', details: String(error) }, { status: 500 });
   }

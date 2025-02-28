@@ -122,3 +122,13 @@
   .admin-button-logout:hover {
     background-color: #4b5563; /* Gris plus foncé au survol */
   }
+
+  .admin-button.disabled {
+    background-color: #d1d5db; /* Gris clair */
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+  
+  .admin-button.disabled:hover {
+    background-color: #d1d5db; /* Pas de changement au survol */
+  }

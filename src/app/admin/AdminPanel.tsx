@@ -10,7 +10,8 @@ interface User {
   id: string;
   name: string;
   email: string;
-  role: string;
+  password: string;
+  role: 'superadmin' | 'admin' | 'user';
   banned?: number;
 }
 
@@ -25,7 +26,12 @@ interface AdminPanelProps {
 
 export default function AdminPanel({ session }: AdminPanelProps) {
   const [userList, setUserList] = useState<User[]>([]);
-  const [newUser, setNewUser] = useState({ name: '', email: '', role: 'user' });
+  const [newUser, setNewUser] = useState<{ name: string; email: string; password: string; role: 'superadmin' | 'admin' | 'user' }>({
+    name: '',
+    email: '',
+    password: '',
+    role: 'user',
+  });
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -68,7 +74,7 @@ export default function AdminPanel({ session }: AdminPanelProps) {
       if (!res.ok) throw new Error(`Failed to add user: ${res.status}`);
       const addedUser = await res.json();
       setUserList([...userList, addedUser]);
-      setNewUser({ name: '', email: '', role: 'user' });
+      setNewUser({ name: '', email: '', password: '', role: 'user' });
       await fetchUsers();
       await fetchStats();
     } catch (error) {
@@ -118,14 +124,24 @@ export default function AdminPanel({ session }: AdminPanelProps) {
   };
 
   const handleBanUser = async (id: string, currentBanned: number | undefined) => {
+    const userToBan = userList.find((u) => u.id === id);
+    if (!userToBan) return;
+
+    if (id === session.user.id) {
+      setError('Vous ne pouvez pas vous bannir vous-même.');
+      return;
+    }
+    if (session.user.role === 'admin' && (userToBan.role === 'admin' || userToBan.role === 'superadmin')) {
+      setError('Les admins ne peuvent pas bannir d’autres admins ou superadmins.');
+      return;
+    }
+
     const newBanned = currentBanned === 1 ? 0 : 1;
     try {
-      const userToUpdate = userList.find((u) => u.id === id);
-      if (!userToUpdate) throw new Error('User not found');
       const res = await fetch('/api/users', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...userToUpdate, banned: newBanned }),
+        body: JSON.stringify({ ...userToBan, banned: newBanned }),
       });
       if (!res.ok) throw new Error(`Failed to update user: ${res.status}`);
       const updatedUser = await res.json();
@@ -139,14 +155,24 @@ export default function AdminPanel({ session }: AdminPanelProps) {
   };
 
   const handleToggleRole = async (id: string, currentRole: string) => {
-    const newRole = currentRole === 'admin' ? 'user' : 'admin';
+    const userToToggle = userList.find((u) => u.id === id);
+    if (!userToToggle) return;
+
+    if (id === session.user.id && (currentRole === 'admin' || currentRole === 'superadmin')) {
+      setError('Vous ne pouvez pas vous rétrograder vous-même.');
+      return;
+    }
+    if (session.user.role === 'admin' && (userToToggle.role === 'admin' || userToToggle.role === 'superadmin')) {
+      setError('Les admins ne peuvent pas modifier le rôle d’autres admins ou superadmins.');
+      return;
+    }
+
+    const newRole = currentRole === 'superadmin' ? 'admin' : currentRole === 'admin' ? 'user' : 'admin';
     try {
-      const userToUpdate = userList.find((u) => u.id === id);
-      if (!userToUpdate) throw new Error('User not found');
       const res = await fetch('/api/users', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...userToUpdate, role: newRole }),
+        body: JSON.stringify({ ...userToToggle, role: newRole }),
       });
       if (!res.ok) throw new Error(`Failed to update user: ${res.status}`);
       const updatedUser = await res.json();
@@ -171,7 +197,7 @@ export default function AdminPanel({ session }: AdminPanelProps) {
           Déconnexion
         </button>
       </div>
-      <p className="admin-welcome">Bienvenue, {session.user.name} ! Vous êtes administrateur.</p>
+      <p className="admin-welcome">Bienvenue, {session.user.name} ! Vous êtes {session.user.role}.</p>
       {error && <p style={{ color: 'red' }}>{error}</p>}
 
       <section className="admin-section">
@@ -179,6 +205,7 @@ export default function AdminPanel({ session }: AdminPanelProps) {
         {stats ? (
           <div>
             <p>Nombre total d’utilisateurs : {stats.total}</p>
+            <p>Superadmins : {stats.roles.superadmin || 0}</p>
             <p>Administrateurs : {stats.roles.admin || 0}</p>
             <p>Utilisateurs standards : {stats.roles.user || 0}</p>
           </div>
@@ -206,13 +233,22 @@ export default function AdminPanel({ session }: AdminPanelProps) {
             className="admin-input"
             required
           />
+          <input
+            type="password"
+            value={newUser.password}
+            onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+            placeholder="Mot de passe"
+            className="admin-input"
+            required
+          />
           <select
             value={newUser.role}
-            onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+            onChange={(e) => setNewUser({ ...newUser, role: e.target.value as 'superadmin' | 'admin' | 'user' })}
             className="admin-select"
           >
             <option value="user">User</option>
             <option value="admin">Admin</option>
+            <option value="superadmin">Superadmin</option>
           </select>
           <button type="submit" className="admin-button">Ajouter</button>
         </form>
@@ -232,41 +268,51 @@ export default function AdminPanel({ session }: AdminPanelProps) {
             </tr>
           </thead>
           <tbody>
-            {userList.map((user) => (
-              <tr key={user.id}>
-                <td>{user.id}</td>
-                <td>{user.name}</td>
-                <td>{user.email}</td>
-                <td>{user.role}</td>
-                <td>{user.banned === 1 ? 'Oui' : 'Non'}</td>
-                <td>
-                  <button
-                    onClick={() => handleEditUser(user)}
-                    className="admin-button admin-button-edit"
-                  >
-                    Modifier
-                  </button>
-                  <button
-                    onClick={() => handleDeleteUser(user.id)}
-                    className="admin-button admin-button-delete"
-                  >
-                    Supprimer
-                  </button>
-                  <button
-                    onClick={() => handleBanUser(user.id, user.banned)}
-                    className={`admin-button ${user.banned === 1 ? 'admin-button-cancel' : 'admin-button-delete'}`}
-                  >
-                    {user.banned === 1 ? 'Débannir' : 'Bannir'}
-                  </button>
-                  <button
-                    onClick={() => handleToggleRole(user.id, user.role)}
-                    className="admin-button admin-button-edit"
-                  >
-                    {user.role === 'admin' ? 'Rétrograder' : 'Promouvoir'}
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {userList.map((user) => {
+              const isSelf = user.id === session.user.id;
+              const isAdmin = session.user.role === 'admin';
+              const isTargetAdminOrAbove = user.role === 'admin' || user.role === 'superadmin';
+              const canBan = !isSelf && !(isAdmin && isTargetAdminOrAbove);
+              const canToggleRole = !isSelf && !(isAdmin && isTargetAdminOrAbove);
+
+              return (
+                <tr key={user.id}>
+                  <td>{user.id}</td>
+                  <td>{user.name}</td>
+                  <td>{user.email}</td>
+                  <td>{user.role}</td>
+                  <td>{user.banned === 1 ? 'Oui' : 'Non'}</td>
+                  <td>
+                    <button
+                      onClick={() => handleEditUser(user)}
+                      className="admin-button admin-button-edit"
+                    >
+                      Modifier
+                    </button>
+                    <button
+                      onClick={() => handleDeleteUser(user.id)}
+                      className="admin-button admin-button-delete"
+                    >
+                      Supprimer
+                    </button>
+                    <button
+                      onClick={() => handleBanUser(user.id, user.banned)}
+                      className={`admin-button ${user.banned === 1 ? 'admin-button-cancel' : 'admin-button-delete'} ${!canBan ? 'disabled' : ''}`}
+                      disabled={!canBan}
+                    >
+                      {user.banned === 1 ? 'Débannir' : 'Bannir'}
+                    </button>
+                    <button
+                      onClick={() => handleToggleRole(user.id, user.role)}
+                      className={`admin-button admin-button-edit ${!canToggleRole ? 'disabled' : ''}`}
+                      disabled={!canToggleRole}
+                    >
+                      {user.role === 'superadmin' ? 'Rétrograder (Admin)' : user.role === 'admin' ? 'Rétrograder (User)' : 'Promouvoir'}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </section>
@@ -289,13 +335,21 @@ export default function AdminPanel({ session }: AdminPanelProps) {
               className="admin-input"
               required
             />
+            <input
+              type="password"
+              value={editingUser.password}
+              onChange={(e) => setEditingUser({ ...editingUser, password: e.target.value })}
+              placeholder="Nouveau mot de passe (optionnel)"
+              className="admin-input"
+            />
             <select
               value={editingUser.role}
-              onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
+              onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value as 'superadmin' | 'admin' | 'user' })}
               className="admin-select"
             >
               <option value="user">User</option>
               <option value="admin">Admin</option>
+              <option value="superadmin">Superadmin</option>
             </select>
             <button type="submit" className="admin-button">Mettre à jour</button>
             <button

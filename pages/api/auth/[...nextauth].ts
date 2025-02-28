@@ -1,6 +1,11 @@
+// pages/api/auth/[...nextauth].ts
 import NextAuth, { NextAuthOptions, Session } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { JWT } from 'next-auth/jwt';
+import bcrypt from 'bcrypt';
+import db from '@/lib/db';
+
+const findUserByEmail = db.prepare('SELECT * FROM users WHERE email = ?');
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -13,10 +18,28 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         const email = credentials?.email as string | undefined;
         const password = credentials?.password as string | undefined;
-        if (email === 'test@example.com' && password === 'password123') {
-          return { id: '1', name: 'Test User', email: 'test@example.com', role: 'admin' };
+
+        if (!email || !password) return null;
+
+        const user = findUserByEmail.get(email) as {
+          id: string;
+          name: string;
+          email: string;
+          password: string;
+          role: 'superadmin' | 'admin' | 'user';
+          banned: number;
+        } | undefined;
+
+        if (!user || !bcrypt.compareSync(password, user.password) || user.banned === 1) {
+          return null;
         }
-        return null;
+
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        };
       },
     }),
   ],
@@ -24,7 +47,7 @@ export const authOptions: NextAuthOptions = {
     signIn: '/login',
   },
   secret: process.env.NEXTAUTH_SECRET || 'temporary-secret-for-testing',
-  debug: true, // Désactive le mode debug
+  debug: false,
   session: {
     strategy: 'jwt' as const,
   },
@@ -37,13 +60,13 @@ export const authOptions: NextAuthOptions = {
         id: token.sub || '',
         name: token.name || '',
         email: token.email || '',
-        role: token.role || 'user',
+        role: (token.role as 'superadmin' | 'admin' | 'user') || 'user',
       };
       return session;
     },
     async jwt({ token, user }: { token: JWT; user?: any }) {
       if (user) {
-        token.role = user.role;
+        token.role = user.role as 'superadmin' | 'admin' | 'user';
         token.name = user.name;
         token.email = user.email;
       }

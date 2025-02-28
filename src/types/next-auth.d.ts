@@ -7,8 +7,8 @@ export interface ExtendedUser {
   name?: string | null;
   email?: string | null;
   image?: string | null;
-  role?: string;
-  banned?: number; // Ajouté
+  role?: 'superadmin' | 'admin' | 'user';
+  banned?: number;
 }
 
 export interface ExtendedSession {
@@ -16,7 +16,7 @@ export interface ExtendedSession {
 }
 
 export interface ExtendedJWT extends JWTBase {
-  role?: string;
+  role?: 'superadmin' | 'admin' | 'user'; // Aligné avec ExtendedUser
 }
 
 declare module 'next-auth' {
@@ -25,8 +25,8 @@ declare module 'next-auth' {
   }
   interface User {
     id: string;
-    role?: string;
-    banned?: number; // Ajouté
+    role?: 'superadmin' | 'admin' | 'user';
+    banned?: number;
   }
   function getServerSession(
     options?: { req?: any; res?: any } | any
@@ -35,6 +35,6 @@ declare module 'next-auth' {
 
 declare module 'next-auth/jwt' {
   interface JWT {
-    role?: string;
+    role?: 'superadmin' | 'admin' | 'user'; // Typage précis
   }
 }
