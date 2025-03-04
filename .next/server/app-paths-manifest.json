@@ -1,7 +1,4 @@
 {
-  "/api/carousels/route": "app/api/carousels/route.js",
-  "/api/logs/route": "app/api/logs/route.js",
-  "/api/users/route": "app/api/users/route.js",
-  "/admin/carousel/page": "app/admin/carousel/page.js",
-  "/admin/page": "app/admin/page.js"
+  "/api/media/route": "app/api/media/route.js",
+  "/admin/media/page": "app/admin/media/page.js"
 }

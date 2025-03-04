@@ -8,7 +8,7 @@ interface Carousel {
   id: string;
   title: string;
   description?: string;
-  items: string[]; // Liste d'IDs ou chemins de fichiers
+  items: string[]; // Liste d’IDs de médias
   created_at: number;
   updated_at: number;
   user_id: string;
@@ -21,28 +21,15 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    console.log('Attempting to fetch carousels from /api/carousels...');
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get('limit') || '10', 10);
     const offset = parseInt(searchParams.get('offset') || '0', 10);
-
-    // Vérifier la connexion à la base
-    if (!db) {
-      throw new Error('Database connection failed');
-    }
-
-    // Vérifier si la table carousels existe (corrigé les guillemets)
-    const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='carousels'").get();
-    if (!tableCheck) {
-      throw new Error('Table carousels does not exist');
-    }
 
     const carousels = db
       .prepare('SELECT * FROM carousels ORDER BY updated_at DESC LIMIT ? OFFSET ?')
       .all(limit, offset) as Carousel[];
     const total = db.prepare('SELECT COUNT(*) as total FROM carousels').get() as { total: number };
 
-    console.log('Carousels fetched:', carousels.length, 'total:', total.total);
     return NextResponse.json({ carousels, total: total.total });
   } catch (error) {
     console.error('Error in GET /api/carousels:', error);

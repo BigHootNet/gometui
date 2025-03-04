@@ -6,41 +6,39 @@ import { useSession } from 'next-auth/react';
 import { ExtendedSession } from '@/types/next-auth';
 import Modal from '../components/Modal';
 import '../../../styles/admin.css';
+import { Album, Media } from '@/app/admin/types/index'; // Import correct
 
-interface Album {
-  id: string;
-  title: string;
-  created_at: number;
-  files: { id: string; file_path: string; uploaded_at: number }[];
-}
-
-export default function AlbumsPage() {
+export default function AlbumsAdminPage() {
   const { data: session, status } = useSession();
   const extendedSession = session as ExtendedSession | null;
   const [albums, setAlbums] = useState<Album[]>([]);
-  const [albumTitle, setAlbumTitle] = useState('');
-  const [albumFiles, setAlbumFiles] = useState<File[]>([]);
+  const [totalAlbums, setTotalAlbums] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [newAlbum, setNewAlbum] = useState({ title: '', media_ids: [] as string[] });
   const [editingAlbum, setEditingAlbum] = useState<Album | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
   const [modalAction, setModalAction] = useState<() => void>(() => {});
   const [isLoading, setIsLoading] = useState(false);
+  const [availableMedia, setAvailableMedia] = useState<Media[]>([]);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     if (extendedSession?.user) {
       loadAlbums();
+      loadAvailableMedia();
     }
-  }, [extendedSession]);
+  }, [extendedSession, currentPage]);
 
   const loadAlbums = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/albums');
+      const res = await fetch(`/api/albums?limit=${itemsPerPage}&offset=${(currentPage - 1) * itemsPerPage}`);
       if (!res.ok) throw new Error(`Failed to fetch albums: ${res.status}`);
-      const { albums: fetchedAlbums } = await res.json();
-      setAlbums(fetchedAlbums);
+      const { albums: albumsData, total } = await res.json();
+      setAlbums(albumsData);
+      setTotalAlbums(total);
     } catch (err) {
       console.error('Erreur lors du chargement des albums:', err);
       setError('Erreur lors du chargement des albums');
@@ -49,47 +47,90 @@ export default function AlbumsPage() {
     }
   };
 
-  const handleAlbumFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length > 0) {
-      setAlbumFiles(files);
+  const loadAvailableMedia = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/media');
+      if (!res.ok) throw new Error(`Failed to fetch media: ${res.status}`);
+      const { media } = await res.json();
+      setAvailableMedia(media);
+    } catch (err) {
+      console.error('Erreur lors du chargement des médias:', err);
+      setError('Erreur lors du chargement des médias');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleAddAlbum = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!albumFiles.length) {
-      setError('Veuillez sélectionner au moins un fichier pour l’album.');
-      return;
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= Math.ceil(totalAlbums / itemsPerPage)) {
+      setCurrentPage(newPage);
     }
-    if (!albumTitle.trim()) {
-      setError('Veuillez entrer un titre pour l’album.');
-      return;
-    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
 
     setIsLoading(true);
-    const formData = new FormData();
-    albumFiles.forEach((file) => formData.append('files', file));
-    formData.append('userId', extendedSession!.user.id);
-    formData.append('type', 'album');
-    formData.append('title', albumTitle);
-
     try {
+      const formData = new FormData();
+      files.forEach((file) => formData.append('files', file));
+      formData.append('userId', extendedSession!.user.id);
+      formData.append('type', 'album');
+      formData.append('associatedId', editingAlbum?.id || ''); // Associer à l’album en cours d’édition ou nouveau
+
       const res = await fetch('/api/uploads', {
         method: 'POST',
         body: formData,
       });
-      if (!res.ok) throw new Error(`Failed to upload album: ${res.status}`);
-      const { message } = await res.json();
-      console.log('Album uploaded:', message);
-      setAlbumTitle('');
-      setAlbumFiles([]);
-      setSuccess('Album ajouté avec succès !');
-      loadAlbums();
-      setTimeout(() => setSuccess(null), 3000);
+      if (!res.ok) throw new Error(`Failed to upload files: ${res.status}`);
+      const { filePaths } = await res.json(); // Supposons que l’API retourne les IDs des médias
+      const mediaIds = filePaths.map((path: string) => {
+        const media = availableMedia.find(m => m.file_path === path);
+        return media?.id || path; // Utiliser l’ID du média si existant, sinon le chemin
+      });
+      setNewAlbum((prev) => ({
+        ...prev,
+        media_ids: [...prev.media_ids, ...mediaIds],
+      }));
+      setError(null);
     } catch (err) {
-      console.error('Erreur lors de l’upload de l’album:', err);
-      setError('Erreur lors de l’upload de l’album');
+      console.error('Erreur lors de l’upload des fichiers:', err);
+      setError('Erreur lors de l’upload des fichiers');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAddMedia = (mediaId: string) => {
+    setNewAlbum((prev) => ({
+      ...prev,
+      media_ids: [...prev.media_ids, mediaId],
+    }));
+  };
+
+  const handleCreateAlbum = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAlbum.title || !newAlbum.media_ids.length) {
+      setError('Titre et éléments sont requis.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/albums', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newAlbum),
+      });
+      if (!res.ok) throw new Error(`Failed to create album: ${res.status}`);
+      setNewAlbum({ title: '', media_ids: [] });
+      loadAlbums();
+      setError(null);
+    } catch (err) {
+      console.error('Erreur lors de la création de l’album:', err);
+      setError('Erreur lors de la création de l’album');
     } finally {
       setIsLoading(false);
     }
@@ -97,43 +138,31 @@ export default function AlbumsPage() {
 
   const handleEditAlbum = (album: Album) => {
     setEditingAlbum(album);
-    setAlbumTitle(album.title);
-    setAlbumFiles([]);
+    setNewAlbum({
+      title: album.title,
+      media_ids: Array.isArray(album.media_ids) ? album.media_ids : [],
+    });
   };
 
   const handleUpdateAlbum = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingAlbum) return;
+    if (!editingAlbum || !newAlbum.title || !newAlbum.media_ids.length) {
+      setError('Titre et éléments sont requis.');
+      return;
+    }
 
     setIsLoading(true);
     try {
-      const resTitle = await fetch('/api/albums', {
+      const res = await fetch('/api/albums', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: editingAlbum.id, title: albumTitle }),
+        body: JSON.stringify({ id: editingAlbum.id, ...newAlbum }),
       });
-      if (!resTitle.ok) throw new Error(`Failed to update album title: ${resTitle.status}`);
-
-      if (albumFiles.length > 0) {
-        const formData = new FormData();
-        albumFiles.forEach((file) => formData.append('files', file));
-        formData.append('userId', extendedSession!.user.id);
-        formData.append('type', 'album');
-        formData.append('albumId', editingAlbum.id);
-
-        const resFiles = await fetch('/api/uploads', {
-          method: 'POST',
-          body: formData,
-        });
-        if (!resFiles.ok) throw new Error(`Failed to add files to album: ${resFiles.status}`);
-      }
-
+      if (!res.ok) throw new Error(`Failed to update album: ${res.status}`);
       setEditingAlbum(null);
-      setAlbumTitle('');
-      setAlbumFiles([]);
-      setSuccess('Album mis à jour avec succès !');
+      setNewAlbum({ title: '', media_ids: [] });
       loadAlbums();
-      setTimeout(() => setSuccess(null), 3000);
+      setError(null);
     } catch (err) {
       console.error('Erreur lors de la mise à jour de l’album:', err);
       setError('Erreur lors de la mise à jour de l’album');
@@ -142,50 +171,23 @@ export default function AlbumsPage() {
     }
   };
 
-  const handleDeleteAlbum = (albumId: string) => {
-    setModalMessage('Voulez-vous vraiment supprimer cet album et tous ses fichiers ?');
+  const handleDeleteAlbum = (id: string) => {
+    setModalMessage('Voulez-vous vraiment supprimer cet album ?');
     setModalAction(() => async () => {
       setIsLoading(true);
       try {
         const res = await fetch('/api/albums', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: albumId }),
+          body: JSON.stringify({ id }),
         });
         if (!res.ok) throw new Error(`Failed to delete album: ${res.status}`);
-        setSuccess('Album supprimé avec succès !');
         loadAlbums();
-        setTimeout(() => setSuccess(null), 3000);
+        setIsModalOpen(false);
       } catch (err) {
         console.error('Erreur lors de la suppression de l’album:', err);
         setError('Erreur lors de la suppression de l’album');
       } finally {
-        setIsModalOpen(false);
-        setIsLoading(false);
-      }
-    });
-    setIsModalOpen(true);
-  };
-
-  const handleDeleteFile = (albumId: string, fileId: string) => {
-    setModalMessage('Voulez-vous vraiment supprimer ce fichier de l’album ?');
-    setModalAction(() => async () => {
-      setIsLoading(true);
-      try {
-        const res = await fetch('/api/albums/file', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ albumId, fileId }),
-        });
-        if (!res.ok) throw new Error(`Failed to delete file: ${res.status}`);
-        setSuccess('Fichier supprimé avec succès !');
-        loadAlbums();
-        setTimeout(() => setSuccess(null), 3000);
-      } catch (err) {
-        console.error('Erreur lors de la suppression du fichier:', err);
-        setError('Erreur lors de la suppression du fichier');
-      } finally {
-        setIsModalOpen(false);
         setIsLoading(false);
       }
     });
@@ -201,34 +203,61 @@ export default function AlbumsPage() {
     <div className="admin-container">
       <h1 className="admin-title">Gestion des Albums</h1>
       {error && <p className="error-message">{error}</p>}
-      {success && <p className="success-message">{success}</p>}
-      {isLoading && <div className="spinner">Chargement...</div>}
 
-      {/* Formulaire pour ajouter ou modifier un album */}
-      <section className="admin-section album-form-section">
-        <h2 className="admin-section-title">{editingAlbum ? 'Modifier l’album' : 'Ajouter un album'}</h2>
-        <form onSubmit={editingAlbum ? handleUpdateAlbum : handleAddAlbum} className="admin-form">
+      {/* Formulaire de création/modification */}
+      <section className="admin-section">
+        <h2 className="admin-section-title">{editingAlbum ? 'Modifier un album' : 'Créer un album'}</h2>
+        <form onSubmit={editingAlbum ? handleUpdateAlbum : handleCreateAlbum} className="admin-form">
           <input
             type="text"
-            value={albumTitle}
-            onChange={(e) => setAlbumTitle(e.target.value)}
+            value={newAlbum.title}
+            onChange={(e) => setNewAlbum({ ...newAlbum, title: e.target.value })}
             placeholder="Titre de l’album"
             className="admin-input"
             required
           />
+          <h3>Éléments (médias pour l’album)</h3>
           <input
             type="file"
             accept="image/*,video/*"
             multiple
-            onChange={handleAlbumFilesChange}
+            onChange={handleFileUpload}
             className="admin-input"
           />
+          <h4>Ou sélectionner un média existant :</h4>
+          <select
+            onChange={(e) => handleAddMedia(e.target.value)}
+            className="admin-input"
+            value=""
+          >
+            <option value="">Sélectionner un média...</option>
+            {availableMedia.map((media) => (
+              <option key={media.id} value={media.id}>
+                {media.file_path} ({media.type}) - Uploadé le {new Date(media.uploaded_at * 1000).toLocaleString()}
+              </option>
+            ))}
+          </select>
+          <ul className="item-list">
+            {Array.isArray(newAlbum.media_ids) && newAlbum.media_ids.map((mediaId, index) => {
+              const media = availableMedia.find(m => m.id === mediaId);
+              return (
+                <li key={index}>
+                  {media ? `${media.file_path} (${media.type})` : mediaId}
+                </li>
+              );
+            })}
+          </ul>
           <div className="form-buttons">
             <button type="submit" className="admin-button primary-button" disabled={isLoading}>
-              {editingAlbum ? 'Mettre à jour' : 'Ajouter'}
+              {editingAlbum ? 'Mettre à jour' : 'Créer'}
             </button>
             {editingAlbum && (
-              <button type="button" onClick={() => { setEditingAlbum(null); setAlbumTitle(''); setAlbumFiles([]); }} className="admin-button cancel-button" disabled={isLoading}>
+              <button
+                type="button"
+                onClick={() => { setEditingAlbum(null); setNewAlbum({ title: '', media_ids: [] }); }}
+                className="admin-button cancel-button"
+                disabled={isLoading}
+              >
                 Annuler
               </button>
             )}
@@ -237,47 +266,68 @@ export default function AlbumsPage() {
       </section>
 
       {/* Liste des albums */}
-      <section className="admin-section album-list-section">
-        <h2 className="admin-section-title">Albums</h2>
-        {albums.length === 0 ? (
+      <section className="admin-section">
+        <h2 className="admin-section-title">Liste des Albums</h2>
+        {isLoading ? (
+          <p className="spinner">Chargement...</p>
+        ) : albums.length === 0 ? (
           <p className="no-content">Aucun album disponible.</p>
         ) : (
-          <div className="album-grid">
-            {albums.map((album) => (
-              <div key={album.id} className="album-card">
-                <h3 className="album-card-title">{album.title}</h3>
-                <p className="album-card-date">Créé le {new Date(album.created_at * 1000).toLocaleString()}</p>
-                <div className="album-card-actions">
-                  <button onClick={() => handleEditAlbum(album)} className="admin-button edit-button" disabled={isLoading}>
-                    Modifier
-                  </button>
-                  <button onClick={() => handleDeleteAlbum(album.id)} className="admin-button delete-button" disabled={isLoading}>
-                    Supprimer
-                  </button>
-                </div>
-                <div className="album-files-gallery">
-                  {album.files.map((file) => (
-                    <div key={file.id} className="album-file-item">
-                      {file.file_path.endsWith('.mp4') || file.file_path.endsWith('.webm') ? (
-                        <video src={file.file_path} controls className="album-file-media" />
-                      ) : (
-                        <img src={file.file_path} alt="Album file" className="album-file-media" />
-                      )}
-                      <button
-                        onClick={() => handleDeleteFile(album.id, file.id)}
-                        className="admin-button delete-file-button"
-                        title="Supprimer ce fichier"
-                        disabled={isLoading}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Titre</th>
+                <th>Éléments</th>
+                <th>Créé le</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {albums.map((album) => (
+                <tr key={album.id}>
+                  <td>{album.id}</td>
+                  <td>{album.title}</td>
+                  <td>{album.media_ids?.length || 0} éléments</td>
+                  <td>{new Date(album.created_at * 1000).toLocaleString()}</td>
+                  <td>
+                    <button
+                      onClick={() => handleEditAlbum(album)}
+                      className="admin-button edit-button"
+                      disabled={isLoading}
+                    >
+                      Modifier
+                    </button>
+                    <button
+                      onClick={() => handleDeleteAlbum(album.id)}
+                      className="admin-button delete-button"
+                      disabled={isLoading}
+                    >
+                      Supprimer
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
+        <div className="pagination">
+          <button
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1 || isLoading}
+            className="admin-button"
+          >
+            Précédent
+          </button>
+          <span>Page {currentPage} sur {Math.ceil(totalAlbums / itemsPerPage)}</span>
+          <button
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === Math.ceil(totalAlbums / itemsPerPage) || isLoading}
+            className="admin-button"
+          >
+            Suivant
+          </button>
+        </div>
       </section>
 
       <Modal

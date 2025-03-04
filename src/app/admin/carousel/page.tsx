@@ -6,16 +6,7 @@ import { useSession } from 'next-auth/react';
 import { ExtendedSession } from '@/types/next-auth';
 import Modal from '../components/Modal';
 import '../../../styles/admin.css';
-
-interface Carousel {
-  id: string;
-  title: string;
-  description?: string;
-  items: string[]; // Liste de chemins ou IDs de fichiers uploadés
-  created_at: number;
-  updated_at: number;
-  user_id: string;
-}
+import { Carousel, Media } from '@/app/admin/types/index'; // Import correct
 
 export default function CarouselAdminPage() {
   const { data: session, status } = useSession();
@@ -30,12 +21,13 @@ export default function CarouselAdminPage() {
   const [modalMessage, setModalMessage] = useState('');
   const [modalAction, setModalAction] = useState<() => void>(() => {});
   const [isLoading, setIsLoading] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]); // Pour stocker les fichiers uploadés
+  const [availableMedia, setAvailableMedia] = useState<Media[]>([]);
   const itemsPerPage = 5;
 
   useEffect(() => {
     if (extendedSession?.user) {
       loadCarousels();
+      loadAvailableMedia();
     }
   }, [extendedSession, currentPage]);
 
@@ -50,6 +42,21 @@ export default function CarouselAdminPage() {
     } catch (err) {
       console.error('Erreur lors du chargement des carousels:', err);
       setError('Erreur lors du chargement des carousels');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadAvailableMedia = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/media');
+      if (!res.ok) throw new Error(`Failed to fetch media: ${res.status}`);
+      const { media } = await res.json();
+      setAvailableMedia(media);
+    } catch (err) {
+      console.error('Erreur lors du chargement des médias:', err);
+      setError('Erreur lors du chargement des médias');
     } finally {
       setIsLoading(false);
     }
@@ -70,18 +77,22 @@ export default function CarouselAdminPage() {
       const formData = new FormData();
       files.forEach((file) => formData.append('files', file));
       formData.append('userId', extendedSession!.user.id);
-      formData.append('type', 'carousel'); // Indique que c’est pour un carrousel
+      formData.append('type', 'carousel');
+      formData.append('associatedId', ''); // Peut être vide pour un média générique
 
       const res = await fetch('/api/uploads', {
         method: 'POST',
         body: formData,
       });
       if (!res.ok) throw new Error(`Failed to upload files: ${res.status}`);
-      const { filePaths } = await res.json(); // Supposons que l’API retourne les chemins des fichiers uploadés
-      setUploadedFiles([...uploadedFiles, ...files]); // Stocker les fichiers pour référence
+      const { filePaths } = await res.json(); // Supposons que l’API retourne les IDs des médias
+      const mediaIds = filePaths.map((path: string) => {
+        const media = availableMedia.find(m => m.file_path === path);
+        return media?.id || path; // Utiliser l’ID du média si existant, sinon le chemin
+      });
       setNewCarousel((prev) => ({
         ...prev,
-        items: [...prev.items, ...filePaths], // Ajouter les chemins ou IDs des fichiers uploadés
+        items: [...prev.items, ...mediaIds],
       }));
       setError(null);
     } catch (err) {
@@ -90,6 +101,13 @@ export default function CarouselAdminPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleAddMedia = (mediaId: string) => {
+    setNewCarousel((prev) => ({
+      ...prev,
+      items: [...prev.items, mediaId],
+    }));
   };
 
   const handleCreateCarousel = async (e: React.FormEvent) => {
@@ -108,7 +126,6 @@ export default function CarouselAdminPage() {
       });
       if (!res.ok) throw new Error(`Failed to create carousel: ${res.status}`);
       setNewCarousel({ title: '', description: '', items: [] });
-      setUploadedFiles([]); // Réinitialiser les fichiers uploadés
       loadCarousels();
       setError(null);
     } catch (err) {
@@ -124,9 +141,8 @@ export default function CarouselAdminPage() {
     setNewCarousel({
       title: carousel.title,
       description: carousel.description || '',
-      items: carousel.items,
+      items: Array.isArray(carousel.items) ? carousel.items : [], // Assurer que items est un tableau
     });
-    setUploadedFiles([]); // Réinitialiser les fichiers uploadés en mode édition
   };
 
   const handleUpdateCarousel = async (e: React.FormEvent) => {
@@ -146,7 +162,6 @@ export default function CarouselAdminPage() {
       if (!res.ok) throw new Error(`Failed to update carousel: ${res.status}`);
       setEditingCarousel(null);
       setNewCarousel({ title: '', description: '', items: [] });
-      setUploadedFiles([]); // Réinitialiser après la mise à jour
       loadCarousels();
       setError(null);
     } catch (err) {
@@ -209,7 +224,7 @@ export default function CarouselAdminPage() {
             className="admin-input"
             rows={3}
           />
-          <h3>Éléments (upload de fichiers pour le carrousel)</h3>
+          <h3>Éléments (médias pour le carrousel)</h3>
           <input
             type="file"
             accept="image/*,video/*"
@@ -217,10 +232,28 @@ export default function CarouselAdminPage() {
             onChange={handleFileUpload}
             className="admin-input"
           />
-          <ul className="item-list">
-            {newCarousel.items.map((item, index) => (
-              <li key={index}>{item}</li>
+          <h4>Ou sélectionner un média existant :</h4>
+          <select
+            onChange={(e) => handleAddMedia(e.target.value)}
+            className="admin-input"
+            value=""
+          >
+            <option value="">Sélectionner un média...</option>
+            {availableMedia.map((media) => (
+              <option key={media.id} value={media.id}>
+                {media.file_path} ({media.type}) - Uploadé le {new Date(media.uploaded_at * 1000).toLocaleString()}
+              </option>
             ))}
+          </select>
+          <ul className="item-list">
+            {Array.isArray(newCarousel.items) && newCarousel.items.map((item, index) => {
+              const media = availableMedia.find(m => m.id === item);
+              return (
+                <li key={index}>
+                  {media ? `${media.file_path} (${media.type})` : item}
+                </li>
+              );
+            })}
           </ul>
           <div className="form-buttons">
             <button type="submit" className="admin-button primary-button" disabled={isLoading}>
@@ -229,7 +262,7 @@ export default function CarouselAdminPage() {
             {editingCarousel && (
               <button
                 type="button"
-                onClick={() => { setEditingCarousel(null); setNewCarousel({ title: '', description: '', items: [] }); setUploadedFiles([]); }}
+                onClick={() => { setEditingCarousel(null); setNewCarousel({ title: '', description: '', items: [] }); }}
                 className="admin-button cancel-button"
                 disabled={isLoading}
               >
@@ -240,7 +273,7 @@ export default function CarouselAdminPage() {
         </form>
       </section>
 
-      {/* Liste des carousels */}
+      {/* Liste des carrousels */}
       <section className="admin-section">
         <h2 className="admin-section-title">Liste des Carrousels</h2>
         {isLoading ? (

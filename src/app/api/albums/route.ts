@@ -1,11 +1,24 @@
 // src/app/api/albums/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
-import { promises as fs } from 'fs';
-import path from 'path';
-import { Album, AlbumFile } from '@/app/admin/types';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../pages/api/auth/[...nextauth]';
+import { Album } from '@/app/admin/types/index'; // Import correct
+
+// Fonction utilitaire pour parser media_ids en un tableau de chaînes
+function parseMediaIds(mediaIds: string | string[] | null | undefined): string[] {
+  if (typeof mediaIds === 'string') {
+    try {
+      return JSON.parse(mediaIds) as string[];
+    } catch (e) {
+      return []; // Fallback à un tableau vide si parsing échoue
+    }
+  }
+  if (Array.isArray(mediaIds)) {
+    return mediaIds; // Retourner directement le tableau si c’est déjà un string[]
+  }
+  return []; // Fallback par défaut pour null/undefined
+}
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -14,21 +27,55 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const albums = db
-      .prepare('SELECT id, user_id, title, created_at FROM albums ORDER BY created_at DESC')
-      .all() as Album[];
-    
-    const albumsWithFiles = albums.map((album: Album) => {
-      const files = db
-        .prepare('SELECT id, file_path, uploaded_at FROM album_files WHERE album_id = ?')
-        .all(album.id) as AlbumFile[];
-      return { ...album, files };
-    });
+    const { searchParams } = new URL(req.url);
+    const limit = parseInt(searchParams.get('limit') || '10', 10);
+    const offset = parseInt(searchParams.get('offset') || '0', 10);
 
-    return NextResponse.json({ albums: albumsWithFiles });
+    const albums = db
+      .prepare('SELECT * FROM albums ORDER BY created_at DESC LIMIT ? OFFSET ?')
+      .all(limit, offset) as Album[];
+    const total = db.prepare('SELECT COUNT(*) as total FROM albums').get() as { total: number };
+
+    // Récupérer et parser les media_ids directement depuis la table albums (stockés en JSON)
+    const albumsWithMedia = albums.map(album => ({
+      ...album,
+      media_ids: parseMediaIds(album.media_ids) as string[], // Utiliser parseMediaIds pour garantir un string[]
+    }));
+
+    return NextResponse.json({ albums: albumsWithMedia, total: total.total });
   } catch (error) {
     console.error('Error in GET /api/albums:', error);
     return NextResponse.json({ error: 'Failed to fetch albums', details: String(error) }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user || (session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
+    return NextResponse.json({ error: 'Unauthorized or insufficient permissions' }, { status: 401 });
+  }
+
+  try {
+    const body = await req.json();
+    const { title, media_ids } = body;
+    if (!title) {
+      return NextResponse.json({ error: 'Missing title' }, { status: 400 });
+    }
+
+    // Normaliser et parser media_ids pour s’assurer qu’il est un tableau
+    const normalizedMediaIds = parseMediaIds(media_ids);
+    const mediaIdsJson = JSON.stringify(normalizedMediaIds) as string; // Typage explicite pour TypeScript
+
+    const id = crypto.randomUUID();
+    const timestamp = Math.floor(Date.now() / 1000);
+    db.prepare(
+      'INSERT INTO albums (id, user_id, title, created_at, media_ids) VALUES (?, ?, ?, ?, ?)'
+    ).run(id, session.user.id, title, timestamp, mediaIdsJson);
+
+    return NextResponse.json({ message: 'Album created', id });
+  } catch (error) {
+    console.error('Error in POST /api/albums:', error);
+    return NextResponse.json({ error: 'Failed to create album', details: String(error) }, { status: 500 });
   }
 }
 
@@ -39,14 +86,25 @@ export async function PUT(req: NextRequest) {
   }
 
   try {
-    const { id, title } = await req.json();
+    const body = await req.json();
+    const { id, title, media_ids } = body;
     if (!id || !title) {
       return NextResponse.json({ error: 'Missing id or title' }, { status: 400 });
     }
-    const result = db.prepare('UPDATE albums SET title = ? WHERE id = ?').run(title, id);
+
+    // Normaliser et parser media_ids pour s’assurer qu’il est un tableau
+    const normalizedMediaIds = parseMediaIds(media_ids);
+    const mediaIdsJson = JSON.stringify(normalizedMediaIds) as string; // Typage explicite pour TypeScript
+
+    const timestamp = Math.floor(Date.now() / 1000);
+    const result = db.prepare(
+      'UPDATE albums SET title = ?, created_at = ?, media_ids = ? WHERE id = ?'
+    ).run(title, timestamp, mediaIdsJson, id);
+
     if (result.changes === 0) {
       return NextResponse.json({ error: 'Album not found' }, { status: 404 });
     }
+
     return NextResponse.json({ message: 'Album updated' });
   } catch (error) {
     console.error('Error in PUT /api/albums:', error);
@@ -66,17 +124,6 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Missing album id' }, { status: 400 });
     }
 
-    const files = db.prepare('SELECT file_path FROM album_files WHERE album_id = ?').all(id) as AlbumFile[];
-    for (const file of files) {
-      const filePath = path.join(process.cwd(), 'public', file.file_path);
-      try {
-        await fs.unlink(filePath);
-      } catch (err) {
-        console.warn(`Failed to delete file ${filePath}: ${err}`);
-      }
-    }
-
-    db.prepare('DELETE FROM album_files WHERE album_id = ?').run(id);
     const result = db.prepare('DELETE FROM albums WHERE id = ?').run(id);
     if (result.changes === 0) {
       return NextResponse.json({ error: 'Album not found' }, { status: 404 });

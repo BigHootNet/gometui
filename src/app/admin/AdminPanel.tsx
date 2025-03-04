@@ -86,6 +86,7 @@ export default function AdminPanel({ session }: AdminPanelProps) {
         <h2 className="admin-section-title">Outils Admin</h2>
         <Link href="/admin/albums" className="admin-button">Gestion des albums</Link>
         <Link href="/admin/carousel" className="admin-button">Gestion des carousels</Link>
+        <Link href="/admin/media" className="admin-button">Media Manager</Link>
       </section>
 
       <ActionLogs refreshLogs={() => setRefreshLogsKey((prev: number) => prev + 1)} />
