@@ -1,5 +1,10 @@
 {
   "pages": {
+    "/api/albums/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/albums/route.js"
+    ],
     "/api/media/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
@@ -10,11 +15,11 @@
       "static/chunks/main-app.js",
       "static/chunks/app/layout.js"
     ],
-    "/admin/media/page": [
+    "/admin/albums/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/css/app/admin/media/page.css",
-      "static/chunks/app/admin/media/page.js"
+      "static/css/app/admin/albums/page.css",
+      "static/chunks/app/admin/albums/page.js"
     ],
     "/admin/page": [
       "static/chunks/webpack.js",
@@ -32,21 +37,16 @@
       "static/chunks/main-app.js",
       "static/chunks/app/api/logs/route.js"
     ],
-    "/admin/albums/page": [
+    "/admin/carousel/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/css/app/admin/albums/page.css",
-      "static/chunks/app/admin/albums/page.js"
+      "static/css/app/admin/carousel/page.css",
+      "static/chunks/app/admin/carousel/page.js"
     ],
-    "/api/albums/route": [
+    "/api/carousels/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/albums/route.js"
-    ],
-    "/api/uploads/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/uploads/route.js"
+      "static/chunks/app/api/carousels/route.js"
     ]
   }
 }

@@ -3,9 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../pages/api/auth/[...nextauth]';
-import { Album } from '@/app/admin/types/index'; // Import correct
+import { Album } from '@/app/admin/types/index';
 
-// Fonction utilitaire pour parser media_ids en un tableau de chaînes
 function parseMediaIds(mediaIds: string | string[] | null | undefined): string[] {
   if (typeof mediaIds === 'string') {
     try {
@@ -36,10 +35,10 @@ export async function GET(req: NextRequest) {
       .all(limit, offset) as Album[];
     const total = db.prepare('SELECT COUNT(*) as total FROM albums').get() as { total: number };
 
-    // Récupérer et parser les media_ids directement depuis la table albums (stockés en JSON)
+    // Parser media_ids depuis la table albums
     const albumsWithMedia = albums.map(album => ({
       ...album,
-      media_ids: parseMediaIds(album.media_ids) as string[], // Utiliser parseMediaIds pour garantir un string[]
+      media_ids: parseMediaIds(album.media_ids) as string[],
     }));
 
     return NextResponse.json({ albums: albumsWithMedia, total: total.total });
@@ -62,10 +61,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing title' }, { status: 400 });
     }
 
-    // Normaliser et parser media_ids pour s’assurer qu’il est un tableau
     const normalizedMediaIds = parseMediaIds(media_ids);
-    const mediaIdsJson = JSON.stringify(normalizedMediaIds) as string; // Typage explicite pour TypeScript
-
+    const mediaIdsJson = JSON.stringify(normalizedMediaIds) as string;
     const id = crypto.randomUUID();
     const timestamp = Math.floor(Date.now() / 1000);
     db.prepare(
@@ -92,10 +89,8 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Missing id or title' }, { status: 400 });
     }
 
-    // Normaliser et parser media_ids pour s’assurer qu’il est un tableau
     const normalizedMediaIds = parseMediaIds(media_ids);
-    const mediaIdsJson = JSON.stringify(normalizedMediaIds) as string; // Typage explicite pour TypeScript
-
+    const mediaIdsJson = JSON.stringify(normalizedMediaIds) as string;
     const timestamp = Math.floor(Date.now() / 1000);
     const result = db.prepare(
       'UPDATE albums SET title = ?, created_at = ?, media_ids = ? WHERE id = ?'
@@ -120,11 +115,26 @@ export async function DELETE(req: NextRequest) {
 
   try {
     const { id } = await req.json();
+    console.log("ID reçu pour suppression d'album :", id, "Longueur :", id.length);
     if (!id) {
       return NextResponse.json({ error: 'Missing album id' }, { status: 400 });
     }
 
-    const result = db.prepare('DELETE FROM albums WHERE id = ?').run(id);
+    // Vérifier les enregistrements liés dans album_files
+    const albumFiles = db.prepare('SELECT * FROM album_files WHERE album_id = ?').all(id);
+    console.log("Album_files liés à l'album :", id, albumFiles);
+
+    // Option 1 : Si vous souhaitez que la suppression en cascade fonctionne,
+    // assurez-vous que le schéma a bien été migré (ON DELETE CASCADE sur album_files).
+    // Option 2 : Sinon, supprimer manuellement les enregistrements liés.
+    if (albumFiles.length > 0) {
+      console.log("Suppression manuelle des enregistrements dans album_files pour l'album :", id);
+      db.prepare('DELETE FROM album_files WHERE album_id = ?').run(id);
+    }
+
+    // Supprimer l'album
+    const result = db.prepare('DELETE FROM albums WHERE id = ?').run(String(id));
+    console.log("Résultat de la suppression :", result);
     if (result.changes === 0) {
       return NextResponse.json({ error: 'Album not found' }, { status: 404 });
     }

@@ -23,12 +23,13 @@ export interface User {
     roles: { [key: string]: number };
   }
   
-  export interface Album {
+export interface Album {
     id: string;
-    user_id: string;
     title: string;
+    media_ids?: string[];
+    user_id: string;
     created_at: number;
-    media_ids?: string[]; // Ajouté pour stocker les IDs des médias
+    associated_with?: string;
   }
   
   export interface AlbumFile {
@@ -49,14 +50,15 @@ export interface User {
     tags?: string[]; // Nouvelle propriété pour les tags, optionnelle
   }
   
-  export interface Carousel {
+export interface Carousel {
     id: string;
     title: string;
     description?: string;
-    items: string[]; // Liste d’IDs de médias, pour résoudre l’erreur `items`
+    items: string[]; // IDs des médias
+    user_id: string;
     created_at: number;
     updated_at: number;
-    user_id: string;
+    associated_with?: string; // Ajout facultatif
   }
   
   export type { ExtendedSession } from '@/types/next-auth';

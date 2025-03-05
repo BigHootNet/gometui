@@ -1,4 +1,3 @@
-// src/app/admin/components/MediaGallery.tsx
 import React from 'react';
 import { Media } from '@/app/admin/types/index';
 
@@ -19,10 +18,16 @@ export const MediaGallery: React.FC<MediaGalleryProps> = ({
 }) => {
   const SortableItem: React.FC<{ media: Media }> = ({ media }) => {
     const handleError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-      if (e.target instanceof HTMLImageElement) {
-        e.target.src = '/path/to/default-image.jpg';
-      }
-    };
+        if (e.target instanceof HTMLImageElement) {
+          const defaultImage = '/default-image.jpg'; // Assure-toi que cette image existe dans public/
+          if (e.target.src !== defaultImage) {
+            e.target.src = defaultImage;
+          } else {
+            e.target.onerror = null;
+            e.target.src = 'https://via.placeholder.com/100'; // Utilise une image placeholder externe comme dernier recours
+          }
+        }
+      };
 
     return (
       <div
@@ -34,12 +39,19 @@ export const MediaGallery: React.FC<MediaGalleryProps> = ({
           textAlign: 'center',
           cursor: 'grab',
         }}
+        onClick={() => onSelect(media)}
       >
         <img
           src={media.file_path}
           alt={media.file_path}
           style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '4px' }}
           onError={handleError}
+          // Ajoute un contrôle pour éviter les boucles infinies dans onError
+          onLoad={(e) => {
+            if (e.target instanceof HTMLImageElement && e.target.src.includes('/default-image.jpg')) {
+              e.target.onerror = null; // Désactive onError pour éviter les boucles
+            }
+          }}
         />
         <p style={{ color: '#007bff', fontSize: '16px', marginTop: '10px' }}>
           {media.file_path.split('/').pop()}

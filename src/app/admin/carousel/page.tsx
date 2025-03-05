@@ -1,353 +1,423 @@
-// src/app/admin/carousel/page.tsx
+// src/app/admin/carousels/page.tsx
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
-import { ExtendedSession } from '@/types/next-auth';
-import Modal from '../components/Modal';
-import '../../../styles/admin.css';
-import { Carousel, Media } from '@/app/admin/types/index'; // Import correct
+import React, { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { ExtendedSession } from "@/types/next-auth";
+import "../../../styles/admin.css";
+import Modal from "../components/Modal";
+import { ExistingMediaSelector } from "../components/ExistingMediaSelector";
+import { useMediaManager } from "@/app/admin/hooks/useMediaManager";
+import { v4 as uuidv4 } from "uuid";
+import { Carousel, Media } from "@/app/admin/types/index";
 
-export default function CarouselAdminPage() {
+// Composant pour afficher une carte de carrousel avec aperçu et boutons empilés verticalement
+interface CarouselCardProps {
+  carousel: Carousel & { previewPath: string };
+  onEdit: (carousel: Carousel) => void;
+  onDelete: (carouselId: string) => void;
+}
+
+const CarouselCardComponent: React.FC<CarouselCardProps> = ({ carousel, onEdit, onDelete }) => {
+  return (
+    <div className="album-card">
+      <div style={{ marginBottom: "10px" }}>
+        <img
+          src={carousel.previewPath || undefined}
+          alt={carousel.title}
+          style={{
+            width: "100px",
+            height: "100px",
+            objectFit: "cover",
+            borderRadius: "4px",
+          }}
+        />
+      </div>
+      <p style={{ color: "#007bff", fontSize: "16px", marginBottom: "10px" }}>
+        {carousel.title}
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit(carousel);
+          }}
+          className="admin-button edit-button"
+        >
+          Modifier
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(carousel.id);
+          }}
+          className="admin-button delete-button"
+        >
+          Supprimer
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default function CarouselsAdminPage() {
   const { data: session, status } = useSession();
   const extendedSession = session as ExtendedSession | null;
+
+  // États pour la liste de carrousels
   const [carousels, setCarousels] = useState<Carousel[]>([]);
-  const [totalCarousels, setTotalCarousels] = useState(0);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [newCarousel, setNewCarousel] = useState({ title: '', description: '', items: [] as string[] });
-  const [editingCarousel, setEditingCarousel] = useState<Carousel | null>(null);
+  const [totalCarousels, setTotalCarousels] = useState<number>(0);
+  const [currentPage, setCurrentPage] = useState<number>(1);
   const [error, setError] = useState<string | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMessage, setModalMessage] = useState('');
-  const [modalAction, setModalAction] = useState<() => void>(() => {});
-  const [isLoading, setIsLoading] = useState(false);
-  const [availableMedia, setAvailableMedia] = useState<Media[]>([]);
-  const itemsPerPage = 5;
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  // États pour la création d'un nouveau carrousel
+  const [newCarouselTitle, setNewCarouselTitle] = useState<string>("");
+  const [newCarouselDescription, setNewCarouselDescription] = useState<string>("");
+
+  // États pour l'édition d'un carrousel existant
+  const [carouselBeingEdited, setCarouselBeingEdited] = useState<Carousel | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
+
+  // Modal de confirmation de suppression
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
+  const [deleteCarouselId, setDeleteCarouselId] = useState<string | null>(null);
+  const [deleteModalMessage, setDeleteModalMessage] = useState<string>("");
+
+  // Modal pour le sélecteur de médias existants (pour l'édition)
+  const [showExistingSelector, setShowExistingSelector] = useState<boolean>(false);
+
+  // Hook pour la gestion des médias
+  const { media, folders, currentFolder, setCurrentFolder, loadMedia, updateFolders } =
+    useMediaManager(extendedSession);
+
+  // Charger les carrousels depuis l'API
+  const loadCarousels = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/carousels?limit=5&offset=${(currentPage - 1) * 5}`);
+      if (!res.ok) throw new Error(`Failed to fetch carrousels: ${res.status}`);
+      const { carousels: carouselsData, total } = await res.json();
+      console.log("Carrousels data:", carouselsData);
+      const processedCarousels = carouselsData.map((carousel: Carousel) => ({
+        ...carousel,
+        items:
+          carousel.items && typeof carousel.items === "string"
+            ? JSON.parse(carousel.items)
+            : carousel.items || [],
+      }));
+      setCarousels(processedCarousels);
+      setTotalCarousels(total);
+    } catch (err) {
+      console.error("Erreur lors du chargement des carrousels:", err);
+      setError("Erreur lors du chargement des carrousels");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (extendedSession?.user) {
       loadCarousels();
-      loadAvailableMedia();
+      loadMedia();
     }
   }, [extendedSession, currentPage]);
 
-  const loadCarousels = async () => {
-    setIsLoading(true);
-    try {
-      const res = await fetch(`/api/carousels?limit=${itemsPerPage}&offset=${(currentPage - 1) * itemsPerPage}`);
-      if (!res.ok) throw new Error(`Failed to fetch carousels: ${res.status}`);
-      const { carousels, total } = await res.json();
-      setCarousels(carousels);
-      setTotalCarousels(total);
-    } catch (err) {
-      console.error('Erreur lors du chargement des carousels:', err);
-      setError('Erreur lors du chargement des carousels');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadAvailableMedia = async () => {
-    setIsLoading(true);
-    try {
-      const res = await fetch('/api/media');
-      if (!res.ok) throw new Error(`Failed to fetch media: ${res.status}`);
-      const { media } = await res.json();
-      setAvailableMedia(media);
-    } catch (err) {
-      console.error('Erreur lors du chargement des médias:', err);
-      setError('Erreur lors du chargement des médias');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= Math.ceil(totalCarousels / itemsPerPage)) {
+    if (newPage >= 1 && newPage <= Math.ceil(totalCarousels / 5)) {
       setCurrentPage(newPage);
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
-
-    setIsLoading(true);
-    try {
-      const formData = new FormData();
-      files.forEach((file) => formData.append('files', file));
-      formData.append('userId', extendedSession!.user.id);
-      formData.append('type', 'carousel');
-      formData.append('associatedId', ''); // Peut être vide pour un média générique
-
-      const res = await fetch('/api/uploads', {
-        method: 'POST',
-        body: formData,
-      });
-      if (!res.ok) throw new Error(`Failed to upload files: ${res.status}`);
-      const { filePaths } = await res.json(); // Supposons que l’API retourne les IDs des médias
-      const mediaIds = filePaths.map((path: string) => {
-        const media = availableMedia.find(m => m.file_path === path);
-        return media?.id || path; // Utiliser l’ID du média si existant, sinon le chemin
-      });
-      setNewCarousel((prev) => ({
-        ...prev,
-        items: [...prev.items, ...mediaIds],
-      }));
-      setError(null);
-    } catch (err) {
-      console.error('Erreur lors de l’upload des fichiers:', err);
-      setError('Erreur lors de l’upload des fichiers');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleAddMedia = (mediaId: string) => {
-    setNewCarousel((prev) => ({
-      ...prev,
-      items: [...prev.items, mediaId],
-    }));
-  };
-
-  const handleCreateCarousel = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCarousel.title || !newCarousel.items.length) {
-      setError('Titre et éléments sont requis.');
+  // Création d'un nouveau carrousel
+  const handleCreateCarousel = async () => {
+    if (!newCarouselTitle.trim()) {
+      console.log("Le titre est vide, annulation de la création.");
       return;
     }
-
     setIsLoading(true);
     try {
-      const res = await fetch('/api/carousels', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const newCarousel: Carousel = {
+        id: uuidv4(),
+        title: newCarouselTitle,
+        description: newCarouselDescription,
+        items: [],
+        user_id: extendedSession!.user.id,
+        created_at: Math.floor(Date.now() / 1000),
+        updated_at: Math.floor(Date.now() / 1000),
+        associated_with: currentFolder,
+      };
+      console.log("Création du carousel avec les données :", newCarousel);
+      const res = await fetch("/api/carousels", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newCarousel),
       });
       if (!res.ok) throw new Error(`Failed to create carousel: ${res.status}`);
-      setNewCarousel({ title: '', description: '', items: [] });
+      console.log("Carousel créé avec succès.");
+      setNewCarouselTitle("");
+      setNewCarouselDescription("");
       loadCarousels();
-      setError(null);
     } catch (err) {
-      console.error('Erreur lors de la création du carrousel:', err);
-      setError('Erreur lors de la création du carrousel');
+      console.error("Erreur lors de la création du carousel:", err);
+      setError("Erreur lors de la création du carousel");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleEditCarousel = (carousel: Carousel) => {
-    setEditingCarousel(carousel);
-    setNewCarousel({
-      title: carousel.title,
-      description: carousel.description || '',
-      items: Array.isArray(carousel.items) ? carousel.items : [], // Assurer que items est un tableau
-    });
+  // Suppression d'un carousel
+  const handleDeleteCarousel = (carouselId: string) => {
+    setDeleteModalMessage("Voulez-vous vraiment supprimer ce carousel ?");
+    setDeleteCarouselId(carouselId);
+    setIsDeleteModalOpen(true);
   };
 
-  const handleUpdateCarousel = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingCarousel || !newCarousel.title || !newCarousel.items.length) {
-      setError('Titre et éléments sont requis.');
-      return;
-    }
-
+  const confirmDeleteCarousel = async () => {
+    if (!deleteCarouselId) return;
     setIsLoading(true);
     try {
-      const res = await fetch('/api/carousels', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: editingCarousel.id, ...newCarousel }),
+      const res = await fetch("/api/carousels", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: deleteCarouselId }),
       });
-      if (!res.ok) throw new Error(`Failed to update carousel: ${res.status}`);
-      setEditingCarousel(null);
-      setNewCarousel({ title: '', description: '', items: [] });
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Failed to delete carousel: ${res.status} - ${errorText}`);
+      }
+      setIsDeleteModalOpen(false);
+      setDeleteCarouselId(null);
       loadCarousels();
-      setError(null);
     } catch (err) {
-      console.error('Erreur lors de la mise à jour du carrousel:', err);
-      setError('Erreur lors de la mise à jour du carrousel');
+      console.error("Erreur lors de la suppression du carousel:", err);
+      setError("Erreur lors de la suppression du carousel");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleDeleteCarousel = (id: string) => {
-    setModalMessage('Voulez-vous vraiment supprimer ce carrousel ?');
-    setModalAction(() => async () => {
-      setIsLoading(true);
-      try {
-        const res = await fetch('/api/carousels', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id }),
-        });
-        if (!res.ok) throw new Error(`Failed to delete carousel: ${res.status}`);
-        loadCarousels();
-        setIsModalOpen(false);
-      } catch (err) {
-        console.error('Erreur lors de la suppression du carrousel:', err);
-        setError('Erreur lors de la suppression du carrousel');
-      } finally {
-        setIsLoading(false);
-      }
-    });
-    setIsModalOpen(true);
+  // Ouvrir la modale d'édition pour un carousel existant
+  const handleOpenEditModal = (carousel: Carousel) => {
+    setCarouselBeingEdited(carousel);
+    setIsEditModalOpen(true);
   };
 
-  if (status === 'loading') return <p>Chargement...</p>;
-  if (!extendedSession || (extendedSession.user.role !== 'admin' && extendedSession.user.role !== 'superadmin')) {
-    return <p>Accès réservé aux admins et superadmins.</p>;
-  }
+  // Mise à jour d'un carousel existant
+  const handleUpdateCarousel = async (updatedCarousel: Carousel) => {
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/carousels", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedCarousel),
+      });
+      if (!res.ok) throw new Error(`Failed to update carousel: ${res.status}`);
+      setIsEditModalOpen(false);
+      setCarouselBeingEdited(null);
+      loadCarousels();
+    } catch (err) {
+      console.error("Erreur lors de la mise à jour du carousel:", err);
+      setError("Erreur lors de la mise à jour du carousel");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Calcul de la preview de chaque carousel (basée sur le premier média associé)
+  const carouselPreviews = carousels
+    .filter(
+      (carousel) =>
+        carousel.associated_with === currentFolder || !carousel.associated_with
+    )
+    .map((carousel) => {
+      const ids: string[] = carousel.items ?? [];
+      let previewPath = "";
+      if (ids.length > 0) {
+        const previewMedia = media.find((m) => m.id === ids[0]);
+        if (previewMedia) {
+          previewPath = previewMedia.file_path;
+        } else {
+          console.warn(
+            `Aucun média trouvé pour le carousel ${carousel.id} avec items:`,
+            carousel.items
+          );
+        }
+      }
+      if (!previewPath) {
+        previewPath =
+          "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+      }
+      return { ...carousel, previewPath };
+    });
+
+  // Récupérer la liste des médias associés pour un carousel
+  const getAssociatedMedia = (carousel: Carousel): Media[] => {
+    const ids: string[] =
+      typeof carousel.items === "string" ? JSON.parse(carousel.items) : carousel.items || [];
+    return ids
+      .map((id) => media.find((m) => m.id === id))
+      .filter((m): m is Media => m != null);
+  };
+
+  // Dans le sélecteur de médias existants, éviter d'ajouter des doublons
+  const handleConfirmExistingSelector = (selectedMedia: Media[]) => {
+    if (carouselBeingEdited) {
+      const newIds = selectedMedia.map((m) => m.id);
+      const validIds: string[] =
+        typeof carouselBeingEdited.items === "string"
+          ? JSON.parse(carouselBeingEdited.items)
+          : carouselBeingEdited.items || [];
+      const filteredNewIds = newIds.filter((id) => !validIds.includes(id));
+      setCarouselBeingEdited({
+        ...carouselBeingEdited,
+        items: [...validIds, ...filteredNewIds],
+      });
+    }
+    setShowExistingSelector(false);
+  };
 
   return (
     <div className="admin-container">
       <h1 className="admin-title">Gestion des Carrousels</h1>
       {error && <p className="error-message">{error}</p>}
 
-      {/* Formulaire de création/modification */}
+      {/* Section de création d'un nouveau carousel */}
       <section className="admin-section">
-        <h2 className="admin-section-title">{editingCarousel ? 'Modifier un carrousel' : 'Créer un carrousel'}</h2>
-        <form onSubmit={editingCarousel ? handleUpdateCarousel : handleCreateCarousel} className="admin-form">
-          <input
-            type="text"
-            value={newCarousel.title}
-            onChange={(e) => setNewCarousel({ ...newCarousel, title: e.target.value })}
-            placeholder="Titre du carrousel"
-            className="admin-input"
-            required
-          />
-          <textarea
-            value={newCarousel.description || ''}
-            onChange={(e) => setNewCarousel({ ...newCarousel, description: e.target.value })}
-            placeholder="Description (optionnel)"
-            className="admin-input"
-            rows={3}
-          />
-          <h3>Éléments (médias pour le carrousel)</h3>
-          <input
-            type="file"
-            accept="image/*,video/*"
-            multiple
-            onChange={handleFileUpload}
-            className="admin-input"
-          />
-          <h4>Ou sélectionner un média existant :</h4>
-          <select
-            onChange={(e) => handleAddMedia(e.target.value)}
-            className="admin-input"
-            value=""
-          >
-            <option value="">Sélectionner un média...</option>
-            {availableMedia.map((media) => (
-              <option key={media.id} value={media.id}>
-                {media.file_path} ({media.type}) - Uploadé le {new Date(media.uploaded_at * 1000).toLocaleString()}
-              </option>
-            ))}
-          </select>
-          <ul className="item-list">
-            {Array.isArray(newCarousel.items) && newCarousel.items.map((item, index) => {
-              const media = availableMedia.find(m => m.id === item);
-              return (
-                <li key={index}>
-                  {media ? `${media.file_path} (${media.type})` : item}
-                </li>
-              );
-            })}
-          </ul>
-          <div className="form-buttons">
-            <button type="submit" className="admin-button primary-button" disabled={isLoading}>
-              {editingCarousel ? 'Mettre à jour' : 'Créer'}
-            </button>
-            {editingCarousel && (
-              <button
-                type="button"
-                onClick={() => { setEditingCarousel(null); setNewCarousel({ title: '', description: '', items: [] }); }}
-                className="admin-button cancel-button"
-                disabled={isLoading}
-              >
-                Annuler
-              </button>
-            )}
-          </div>
-        </form>
+        <h2 className="admin-section-title">Créer un nouveau carousel</h2>
+        <input
+          type="text"
+          className="admin-input"
+          placeholder="Titre du carousel"
+          value={newCarouselTitle}
+          onChange={(e) => setNewCarouselTitle(e.target.value)}
+        />
+        <textarea
+          className="admin-input"
+          placeholder="Description du carousel (optionnel)"
+          value={newCarouselDescription}
+          onChange={(e) => setNewCarouselDescription(e.target.value)}
+        />
+        <button
+          className="admin-button primary-button"
+          onClick={handleCreateCarousel}
+          disabled={isLoading || !newCarouselTitle.trim()}
+        >
+          Créer le carousel
+        </button>
       </section>
 
-      {/* Liste des carrousels */}
+      {/* Section des carrousels existants */}
       <section className="admin-section">
-        <h2 className="admin-section-title">Liste des Carrousels</h2>
-        {isLoading ? (
-          <p className="spinner">Chargement...</p>
-        ) : carousels.length === 0 ? (
-          <p className="no-content">Aucun carrousel disponible.</p>
-        ) : (
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Titre</th>
-                <th>Description</th>
-                <th>Éléments</th>
-                <th>Créé le</th>
-                <th>Mis à jour le</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {carousels.map((carousel) => (
-                <tr key={carousel.id}>
-                  <td>{carousel.id}</td>
-                  <td>{carousel.title}</td>
-                  <td>{carousel.description || '-'}</td>
-                  <td>{carousel.items.length} éléments</td>
-                  <td>{new Date(carousel.created_at * 1000).toLocaleString()}</td>
-                  <td>{new Date(carousel.updated_at * 1000).toLocaleString()}</td>
-                  <td>
-                    <button
-                      onClick={() => handleEditCarousel(carousel)}
-                      className="admin-button edit-button"
-                      disabled={isLoading}
-                    >
-                      Modifier
-                    </button>
-                    <button
-                      onClick={() => handleDeleteCarousel(carousel.id)}
-                      className="admin-button delete-button"
-                      disabled={isLoading}
-                    >
-                      Supprimer
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        <h2 className="admin-section-title">
+          Carrousels existants dans {currentFolder}
+        </h2>
+        <div className="album-grid">
+          {carouselPreviews.map((carousel, index) => (
+            <CarouselCardComponent
+              key={`${carousel.id}-${index}`}
+              carousel={carousel}
+              onEdit={handleOpenEditModal}
+              onDelete={handleDeleteCarousel}
+            />
+          ))}
+        </div>
+      </section>
+
+      {/* Pagination */}
+      <section className="admin-section">
         <div className="pagination">
           <button
+            className="admin-button"
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1 || isLoading}
-            className="admin-button"
           >
             Précédent
           </button>
-          <span>Page {currentPage} sur {Math.ceil(totalCarousels / itemsPerPage)}</span>
+          <span>
+            Page {currentPage} sur {Math.ceil(totalCarousels / 5)}
+          </span>
           <button
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === Math.ceil(totalCarousels / itemsPerPage) || isLoading}
             className="admin-button"
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === Math.ceil(totalCarousels / 5) || isLoading}
           >
             Suivant
           </button>
         </div>
       </section>
 
-      <Modal
-        isOpen={isModalOpen}
-        message={modalMessage}
-        onConfirm={modalAction}
-        onCancel={() => setIsModalOpen(false)}
-      />
+      {/* Modal d'édition de carousel */}
+      {isEditModalOpen && carouselBeingEdited && (
+        <Modal
+          isOpen={isEditModalOpen}
+          onConfirm={() => handleUpdateCarousel(carouselBeingEdited)}
+          onCancel={() => {
+            setIsEditModalOpen(false);
+            setCarouselBeingEdited(null);
+          }}
+        >
+          <h2 style={{ textAlign: "center" }}>Modifier le carousel</h2>
+          <input
+            type="text"
+            className="admin-input"
+            value={carouselBeingEdited.title}
+            onChange={(e) =>
+              setCarouselBeingEdited({ ...carouselBeingEdited, title: e.target.value })
+            }
+          />
+          <textarea
+            className="admin-input"
+            value={carouselBeingEdited.description}
+            onChange={(e) =>
+              setCarouselBeingEdited({ ...carouselBeingEdited, description: e.target.value })
+            }
+          />
+          <div style={{ marginBottom: "10px" }}>
+            <h3 style={{ fontSize: "16px", color: "#007bff" }}>Médias associés :</h3>
+            <div className="album-files-gallery">
+              {getAssociatedMedia(carouselBeingEdited).length === 0 ? (
+                <p>Aucun média associé</p>
+              ) : (
+                getAssociatedMedia(carouselBeingEdited).map((m: Media) => (
+                  <img
+                    key={m.id}
+                    src={m.file_path || undefined}
+                    alt={m.file_path}
+                    className="album-file-media"
+                  />
+                ))
+              )}
+            </div>
+          </div>
+          <button
+            className="admin-button primary-button"
+            onClick={() => setShowExistingSelector(true)}
+          >
+            Ajouter des médias existants
+          </button>
+        </Modal>
+      )}
+
+      {/* Modal de sélection de médias existants */}
+      {showExistingSelector && carouselBeingEdited && (
+        <ExistingMediaSelector
+          isOpen={showExistingSelector}
+          mediaList={media.filter((m: Media) => m.associated_with === currentFolder)}
+          onConfirm={handleConfirmExistingSelector}
+          onCancel={() => setShowExistingSelector(false)}
+        />
+      )}
+
+      {/* Modal de confirmation de suppression */}
+      {isDeleteModalOpen && (
+        <Modal
+          isOpen={isDeleteModalOpen}
+          message={deleteModalMessage}
+          onConfirm={confirmDeleteCarousel}
+          onCancel={() => setIsDeleteModalOpen(false)}
+        />
+      )}
     </div>
   );
 }

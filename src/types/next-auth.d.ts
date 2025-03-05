@@ -1,4 +1,3 @@
-// src/types/next-auth.d.ts
 import { Session, User } from 'next-auth';
 import { JWT as JWTBase } from 'next-auth/jwt';
 
@@ -13,15 +12,18 @@ export interface ExtendedUser {
 
 export interface ExtendedSession {
   user: ExtendedUser;
+  accessToken?: string; // Ajoute accessToken comme optionnel (si ce n’est pas toujours présent)
 }
 
 export interface ExtendedJWT extends JWTBase {
   role?: 'superadmin' | 'admin' | 'user'; // Aligné avec ExtendedUser
+  accessToken?: string; // Ajoute accessToken au JWT
 }
 
 declare module 'next-auth' {
   interface Session {
     user: ExtendedUser;
+    accessToken?: string; // Ajoute accessToken à la session
   }
   interface User {
     id: string;
@@ -36,5 +38,6 @@ declare module 'next-auth' {
 declare module 'next-auth/jwt' {
   interface JWT {
     role?: 'superadmin' | 'admin' | 'user'; // Typage précis
+    accessToken?: string; // Ajoute accessToken au JWT
   }
 }

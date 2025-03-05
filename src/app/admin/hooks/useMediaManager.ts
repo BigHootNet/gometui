@@ -1,5 +1,4 @@
-// src/app/admin/hooks/useMediaManager.ts
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Media } from '@/app/admin/types/index';
 import { ExtendedSession } from '@/types/next-auth';
 
@@ -73,11 +72,20 @@ export function useMediaManager(extendedSession: ExtendedSession | null) {
     }
   }, [selectedMedia]);
 
-  const loadMedia = async () => {
+  const loadMedia = useCallback(async () => {
+    if (!extendedSession?.user) {
+      console.log('No selected media or session, resetting states');
+      setMedia([]);
+      return;
+    }
     setIsLoading(true);
     try {
       console.log('Loading media...');
-      const res = await fetch('/api/media');
+      const res = await fetch('/api/media', {
+        headers: { 
+          'Authorization': `Bearer ${extendedSession.accessToken || ''}` // Utilise accessToken, avec fallback si undefined
+        },
+      });
       if (!res.ok) throw new Error(`Failed to fetch media: ${res.status}`);
       const data = await res.json();
       console.log('Raw media data:', data); // Log complet pour voir la structure
@@ -92,12 +100,12 @@ export function useMediaManager(extendedSession: ExtendedSession | null) {
       setMedia(processedMedia);
       updateFolders(processedMedia); // Utiliser les médias traités ici
     } catch (err) {
-      console.error(err);
+      console.error('Error loading media:', err);
       setError('Erreur lors du chargement des médias');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [extendedSession?.user, extendedSession?.accessToken]); // Dépendances minimales
 
   const updateFolders = (mediaList: Media[]) => {
     const folderMap: { [key: string]: Media[] } = {};
@@ -134,7 +142,7 @@ export function useMediaManager(extendedSession: ExtendedSession | null) {
       await loadMedia();
       setError(null);
     } catch (err) {
-      console.error(err);
+      console.error('Error uploading files:', err);
       setError('Erreur lors de l’upload des fichiers');
     } finally {
       setIsLoading(false);
@@ -161,17 +169,18 @@ export function useMediaManager(extendedSession: ExtendedSession | null) {
         setDescription('');
         setSelectedTagInput('');
       } catch (err) {
-        console.error(err);
+        console.error('Error updating media:', err);
         setError('Erreur lors de la mise à jour du média');
       }
     }
   };
 
+  // Utilise un useEffect avec une dépendance minimale pour éviter les appels multiples
   useEffect(() => {
-    if (extendedSession && extendedSession.user) {
+    if (extendedSession?.user) {
       loadMedia();
     }
-  }, [extendedSession]);
+  }, [extendedSession?.user]); // Dépendance minimale sur extendedSession.user
 
   return {
     media,
